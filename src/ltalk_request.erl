@@ -63,9 +63,6 @@ error_reg_test() ->
 						state=?RESPONSE_CODE_ERROR,cmd=Line#line.cmd},
 	?assertEqual(HandledLine,handle(sock,Line)).
 
-oo_test() ->
-	Mod = new_file:new("jias",1111),
-	?assertEqual("jias",Mod:get(name)).
 
 -endif.
 

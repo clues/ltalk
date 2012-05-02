@@ -16,7 +16,7 @@
 -include("ltalk_cmd.hrl").
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
--record(state, {tab}).
+-record(state, {tab,tab_mns}).
 
 
 get(Sock) ->
@@ -46,8 +46,12 @@ handle_call({get,all}, From, State) ->
     {reply, Reply, State};
 
 handle_call({get,Key}, From, State) ->
-	Reply = ets:lookup(State#state.tab, Key),
-    {reply, Reply, State};
+	case ets:lookup(State#state.tab, Key) of
+		[H|T] ->
+			{reply, {ok,H}, State};
+		_ ->
+    		{reply, {error,not_found}, State}
+	end;
 
 handle_call({exist,Name}, From, State) ->
 	Reply = case ets:match(State#state.tab,{'_','_',Name,'_','$1'}) of
@@ -104,7 +108,7 @@ get_test() ->
 	save_or_update(R2),
 	save_or_update(R3),
 	
-	?assertEqual([R1],?MODULE:get(1)).
+	?assertEqual({ok,R1},?MODULE:get(1)).
 
 get_all_test() ->
 	gen_server:start_link({local,?MODULE},?MODULE, [], []),
@@ -129,10 +133,10 @@ update_test() ->
 	save_or_update(R2),
 	save_or_update(R3),
 	
-	?assertEqual([R3],?MODULE:get(3)),
+	?assertEqual({ok,R3},?MODULE:get(3)),
 	save_or_update(R4),
 	?assertEqual(3,length(?MODULE:get(all))),
-	?assertEqual([R4],?MODULE:get(3)).
+	?assertEqual({ok,R4},?MODULE:get(3)).
 
 exist_test() ->
 	gen_server:start_link({local,?MODULE},?MODULE, [], []),
@@ -171,7 +175,7 @@ delete_test() ->
 	?MODULE:delete(2),
 	
 	?assertEqual(false,?MODULE:exist("jias1")),
-	?assertEqual([],?MODULE:get(2)).
+	?assertEqual({error,not_found},?MODULE:get(2)).
 
 
 -endif.

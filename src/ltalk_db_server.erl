@@ -37,7 +37,6 @@ init([]) ->
 	stopped = mnesia:stop(),
 	case mnesia:create_schema([node()]) of
 		ok ->
-			
 			mnesia:start(),
 			{atomic, ok} = create_tables(),
 			{ok, #state{tab_name = ?TAB_USER}};
