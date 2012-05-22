@@ -1,0 +1,33 @@
+
+
+
+   ##        ltalk          ##
+This project is example about talk server,
+basic with tcp protocol,but server use line
+as basic message mode,like '****\r\n',
+so client use telnet command at terminal will 
+supported well.
+
+step 1
+    telnet ip port
+
+step 2
+    enter -help to get more command infomation
+
+step 3 
+    registe usename
+
+step 4 
+    login server
+
+step 5 
+    talk to group or one gay who your known her or his id
+
+
+note: this only an exercise with Erlang
+
+
+
+
+
+
