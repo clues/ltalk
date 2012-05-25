@@ -1,8 +1,9 @@
 %%% -------------------------------------------------------------------
 %%% Author  : wave
-%%% Description :
+%%% Description :this db main support  storage user info,
+%%% and chats to disk in the present
 %%%
-%%% Created : 2012-5-2
+%%% Created : 2012-5-2 
 %%% -------------------------------------------------------------------
 -module(ltalk_db_server).
 
@@ -25,16 +26,21 @@
 
 -record(state, {}).
 
-
+%% save(TabName,Record)->ok | {error,Reason}
+%% will save or update Record internel
 save(TabName,Record) ->
 	gen_server:call(?MODULE, {save_or_update,TabName,Record}).
 
-get(TabName,Record) ->
-	gen_server:call(?MODULE, {get,TabName,Record}).
+%% get record by Key from table TabName,
+%% return records list
+get(TabName,Key) ->
+	gen_server:call(?MODULE, {get,TabName,Key}).
 
+%% delete table TabName by Key
 delete(TabName,Key) ->
 	gen_server:cast(?MODULE, {remove,TabName,Key}).
-
+ 
+%% clear all object from table TabName,table will exist still
 empty(TabName) ->
 	gen_server:cast(?MODULE, {clear_table,TabName}).
 
@@ -44,7 +50,7 @@ start_link() ->
 stop() ->
 	gen_server:call(?MODULE, {stop,normal}).
 
-save_or_update_user(TabName,Record) ->     
+save_or_update(TabName,Record) ->     
 	Result = mnesia:sync_transaction(
 		fun() ->
 				mnesia:write(TabName,Record,write)
@@ -105,12 +111,11 @@ handle_call({get,TabName,Key}, _From, State) ->
 			{reply, {error,read_failed}, State}
 	end;
 handle_call({save_or_update,TabName,Record}, _From, State) ->
-	case save_or_update_user(TabName,Record) of
+	case save_or_update(TabName,Record) of
 		{atomic, _}  -> 
 			{reply, ok, State};
 		{aborted, Reason} ->
-			io:format("~p~n", [Reason]),
-			{reply, {error,store_failed}, State}
+			{reply, {error,Reason}, State}
 	end;
 
 handle_call(Request, From, State) ->
