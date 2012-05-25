@@ -23,7 +23,7 @@
 
 -record(onliner,{socket,name,state,talkto}).
 -record(user,{name,create_time,state,last_access_time}).
--record(chat,{owner,to,time,data}).
+-record(chat,{owner,talkto,time,data}).
 
 
 

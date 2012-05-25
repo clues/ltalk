@@ -155,7 +155,7 @@ save_records_test() ->
 	?MODULE:empty(?TAB_CHAT),
 	
 	U1 = #user{name="jias"},
-	C1 = #chat{owner="jias",to="gate",data= <<"take care!">>},
+	C1 = #chat{owner="jias",talkto="gate",data= <<"take care!">>},
 
 	?MODULE:save(?TAB_USER, U1),
 	?MODULE:save(?TAB_CHAT, C1),
@@ -173,8 +173,8 @@ get_records_test() ->
 	?MODULE:save(?TAB_USER, U1),
 	?MODULE:save(?TAB_USER, U2),
 	
-	C1 = #chat{owner="jack",to="eric",data= <<"take care!">>},
-	C2 = #chat{owner="jack",to="tom",data= <<"take care!">>},
+	C1 = #chat{owner="jack",talkto="eric",data= <<"take care!">>},
+	C2 = #chat{owner="jack",talkto="tom",data= <<"take care!">>},
 	?MODULE:save(?TAB_CHAT, C1),
 	?MODULE:save(?TAB_CHAT, C2),	
 	
@@ -187,7 +187,7 @@ delete_record_test() ->
 	?MODULE:empty(?TAB_CHAT),
 	
 	U1 = #user{name="jias"},
-	C1 = #chat{owner="jack",to="tom",data= <<"take care!">>},
+	C1 = #chat{owner="jack",talkto="tom",data= <<"take care!">>},
 
 	?MODULE:save(?TAB_USER, U1),
 	?MODULE:save(?TAB_CHAT, C1),
