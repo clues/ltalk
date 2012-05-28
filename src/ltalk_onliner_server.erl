@@ -14,13 +14,14 @@
 		get/1,
 		 exist/1,
 		 save/1,
+		 get_by_name/1,
 		 delete/1
 	]).
 
 
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
--record(state, {tab,tab_mns}).
+-record(state, {tab}).
 
 start_link() ->
 	gen_server:start_link({local,?MODULE},?MODULE, [], []).
@@ -33,10 +34,13 @@ get(Sock) ->
 get(all) ->
 	gen_server:call(?MODULE, {get,all}).
 
-%%tell online user whether exist by onlier name
-%%also user name
+%%tell online user whether exist or not by onlier name
 exist(Name) ->
 	gen_server:call(?MODULE, {exist,Name}).
+
+%%get onliner by name
+get_by_name(Name) ->
+	gen_server:call(?MODULE, {get_by_name,Name}).
 
 %%save a user to memory
 save(Onliner) ->
@@ -65,6 +69,15 @@ handle_call({get,Key}, From, State) ->
 		_ ->
     		{reply, {error,not_found}, State}
 	end;
+
+handle_call({get_by_name,Name}, From, State) ->
+	Reply = case ets:match(State#state.tab,{'_','_',Name,'_','$1'}) of
+				[] ->
+					{error,not_found};
+				Onliner ->
+					{ok,Onliner}
+			end,
+    {reply, Reply, State};
 
 handle_call({exist,Name}, From, State) ->
 	Reply = case ets:match(State#state.tab,{'_','_',Name,'_','$1'}) of
@@ -151,6 +164,14 @@ update_test() ->
 	?MODULE:save(R4),
 	?assertEqual(3,length(element(2,?MODULE:get(all)))),
 	?assertEqual({ok,R4},?MODULE:get(3)).
+
+get_by_name_test() ->
+	?MODULE:start_link(),
+	
+	R1 = #onliner{socket=1,name="jias",state=0,talkto=[]},
+	?MODULE:save(R1),
+	?assertEqual(true,?MODULE:exist("jias")),
+	?assertEqual(R1,?MODULE:get_by_name("jias")).
 
 exist_test() ->
 	?MODULE:start_link(),

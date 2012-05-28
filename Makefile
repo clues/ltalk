@@ -5,6 +5,9 @@ REBAR=./rebar
 
 all:
 	@$(REBAR) get-deps compile
+	
+compile:
+	@$(REBAR) compile
 
 edoc:
 	@$(REBAR) doc
@@ -22,6 +25,9 @@ build_plt:
 
 dialyzer:
 	@$(REBAR) dialyze
+
+get-deps:
+	@$(REBAR) get-deps	
 
 app:
 	@$(REBAR) create template=application dest=$(DEST) appid=$(PROJECT)

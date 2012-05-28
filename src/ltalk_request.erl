@@ -8,27 +8,33 @@
 
 
 handle(Socket,Line) when  Line#line.state == ?ERROR_CODE_CMD_FORMAT ->
-	HandledLine = Line#line{state=?RESPONSE_CODE_ERROR,
-					data=?INFO_FORMAT_ERROR ++ Line#line.cmd ++ Line#line.data};
+	Response_Data=?INFO_FORMAT_ERROR ++ Line#line.cmd ++ Line#line.data,
+	response(Socket,list_to_binary(Response_Data));
 
 handle(Socket,Line) when Line#line.state == ?ERROR_CODE_UNLOGIN ->
-	HandledLine = Line#line{state=?RESPONSE_CODE_ERROR,
-					data=?INFO_NOTIFY_LOGIN};	 
+	Response_Data=?INFO_NOTIFY_LOGIN,
+	response(Socket,list_to_binary(Response_Data));
 
 handle(Socket,Line) when Line#line.state == ?ERROR_CODE_UNREG ->
-	HandledLine = Line#line{state=?RESPONSE_CODE_ERROR,
-					data=?INFO_NOTIFY_REG};
+	Response_Data=?INFO_NOTIFY_REG,
+	response(Socket,list_to_binary(Response_Data));
 
 handle(Socket,Line) when  Line#line.cmd == ?CMD_HELP  ->
-	HandledLine = Line#line{state=?RESPONSE_CODE_OK,
-					data=?INFO_NOTIFY_HELP};
+	Response_Data = ?INFO_NOTIFY_HELP,
+	response(Socket,list_to_binary(Response_Data));
 
+%% normal talk message,main handle
 handle(Socket,Line) when  Line#line.cmd == undefined  ->
-	HandledLine = Line#line{state=?RESPONSE_CODE_OK,
-					data=?INFO_NOTIFY_HELP}.
+	case ltalk_onliner_server:get(Socket) of
+		{error,not_found} ->
+				Response_Data=?INFO_NOTIFY_LOGIN,
+				response(Socket,list_to_binary(Response_Data));
+		Onliner ->
+			Receiver = ltalk_onliner_server:get_by_name(Onliner#onliner.talkto),
+			response(Receiver,Line#line.data)
+	end.
 
-send(Socket,Line)  ->
-	Bin = list_to_binary(Line#line.data),
+response(Socket,Bin)  ->
 	ltalk_socket:send(Socket, Bin).
 
 
@@ -38,31 +44,31 @@ send(Socket,Line)  ->
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
 
-error_format_test() ->
-	Line = #line{cmd=?CMD_LOGIN , state=?ERROR_CODE_CMD_FORMAT,data=" jias jias"},
-	HandledLine = #line{data="" ++ ?INFO_FORMAT_ERROR ++ ?CMD_LOGIN ++ Line#line.data,
-						state=?RESPONSE_CODE_ERROR,cmd=Line#line.cmd},
-	?assertEqual(HandledLine,handle(sock,Line)).
+response_error_test() ->
+	meck:new(ltalk_socket),
+	meck:expect(ltalk_socket,send,fun(_S,Bin)->
+										  Bin
+							end),
+	
+	Line1 = #line{cmd=?CMD_LOGIN , state=?ERROR_CODE_CMD_FORMAT,data=" jias jias"},	
+	Bin1 = list_to_binary(?INFO_FORMAT_ERROR ++ ?CMD_LOGIN ++ Line1#line.data),
+	
+	Line2 = #line{cmd=?CMD_HELP , state=?CODE_OK},
+	Bin2 = list_to_binary(?INFO_NOTIFY_HELP),
+	
+	Line3 = #line{cmd=?CMD_LOGIN , state=?ERROR_CODE_UNLOGIN},
+	Bin3 = list_to_binary(?INFO_NOTIFY_LOGIN),
 
-help_test() ->
-	Line = #line{cmd=?CMD_HELP , state=?CODE_OK},
-	HandledLine = #line{data=?INFO_NOTIFY_HELP,
-						state=?RESPONSE_CODE_OK,cmd=Line#line.cmd},
-	?assertEqual(HandledLine,handle(sock,Line)).
+	Line4 = #line{cmd=?CMD_REG , state=?ERROR_CODE_UNREG},
+	Bin4 = list_to_binary(?INFO_NOTIFY_REG),
+	
+	?assertEqual(Bin1,handle(sock,Line1)),
+	?assertEqual(Bin2,handle(sock,Line2)),
+	?assertEqual(Bin3,handle(sock,Line3)),
+	?assertEqual(Bin4,handle(sock,Line4)),
 
-
-error_login_test() ->
-	Line = #line{cmd=?CMD_LOGIN , state=?ERROR_CODE_UNLOGIN},
-	HandledLine = #line{data=?INFO_NOTIFY_LOGIN,
-						state=?RESPONSE_CODE_ERROR,cmd=Line#line.cmd},
-	?assertEqual(HandledLine,handle(sock,Line)).
-
-error_reg_test() ->
-	Line = #line{cmd=?CMD_REG , state=?ERROR_CODE_UNREG},
-	HandledLine = #line{data=?INFO_NOTIFY_REG,
-						state=?RESPONSE_CODE_ERROR,cmd=Line#line.cmd},
-	?assertEqual(HandledLine,handle(sock,Line)).
-
+	meck:unload(ltalk_socket),
+	ok.
 
 -endif.
 
