@@ -33,26 +33,13 @@ handle() when  Line#line.cmd == ?CMD_HELP  ->
 	send(list_to_binary(Response_Data));
 
 handle() when  Line#line.cmd == ?CMD_QUERY_STATE  ->
-	Response_Data = ?INFO_NOTIFY_HELP,
-	send(list_to_binary(Response_Data));
+	send(do(query_state,is(logged)));
 
 handle() when  Line#line.cmd == ?CMD_REG  ->
-	R = case do_reg() of
-		{error,Reason} ->
-			lists:concat(["registe failed,userid: ",Line#line.data," ",Reason]);
-		ok ->
-			lists:concat(["registe success,userid: ",Line#line.data])
-	end,
-	send(list_to_binary(R));
+	send(do(register,is(logged)));
 
 handle() when  Line#line.cmd == ?CMD_LOGIN  ->
-	R = case do_login() of
-		{error,Reason} ->
-			lists:concat(["login failed,userid: ",Line#line.data," ",Reason]);
-		ok ->
-			lists:concat(["login success,userid: ",Line#line.data])
-	end,
-	send(list_to_binary(R));
+	send(do(login,is(logged)));
 
 %% normal talk message,main handle
 handle() when  Line#line.cmd == undefined  ->
@@ -65,40 +52,54 @@ handle() when  Line#line.cmd == undefined  ->
 			send(Line#line.data)
 	end.
 
-do_reg() ->
-	Name = Line#line.data,
-	case ltalk_onliner_server:get(name, Name) of
-		{error,not_found} ->
-			case ltalk_db_server:get(?TAB_USER, Name) of
-				{error,read_failed} = R->
-					R;
-				{ok,[]} ->
-					ltalk_db_server:save(?TAB_USER, #user{name=Name}),
-					ok;
-				{ok,[_]} ->
-					{error,already_exist}				
-			end;
-		{ok,R} ->
-			{error,already_exist}
+do(register,Logged) when Logged ->
+	lists:concat(["registe failed,userid: ",Line#line.data," already exist"]);
+
+do(login,Logged) when Logged ->			
+	lists:concat(["login failed,userid: ",Line#line.data," already login"]);
+
+do(query_state,Logged) when Logged==false ->
+	?INFO_NOTIFY_LOGIN;
+
+do(query_state,Logged) when Logged ->
+	?INFO_NOTIFY_LOGIN;
+
+do(Type,Logged) when Logged==false ->			
+	case is(registered) of
+		true when 'login' == Type ->
+			ltalk_onliner_server:save(#onliner{name=Line#line.data,socket=Socket}),
+			lists:concat(["login success,userid: ",Line#line.data]);
+		true ->
+			lists:concat(["registe failed,userid: ",Line#line.data," already exist"]);
+		false when 'login' == Type ->
+			lists:concat(["login failed,userid: ",Line#line.data,", ",?INFO_NOTIFY_REG]);
+		false ->
+			ltalk_db_server:save(?TAB_USER, #user{name=Line#line.data}),
+			lists:concat(["registe success,userid: ",Line#line.data])
 	end.
 
-do_login() ->
+is(logged) ->
 	Name = Line#line.data,
 	case ltalk_onliner_server:get(name, Name) of
 		{error,not_found} ->
-			case ltalk_db_server:get(?TAB_USER, Name) of
-				{error,read_failed} = R->
-					R;
-				{ok,[]} ->
-					{error,not_found};
-				{ok,[_]} ->
-					ltalk_onliner_server:save(#onliner{name=Name,socket=Socket}),
-					ok				
-			end;
+			false;
 		{ok,R} ->
-			{error,already_login}
+			true
+	end;
+
+is(registered) ->
+	Name = Line#line.data,
+	case ltalk_db_server:get(?TAB_USER, Name) of
+		{error,read_failed} ->
+			false;
+		{ok,[]} ->
+			false;
+		{ok,[_]} ->
+			true
 	end.
-  
+
+send(Data) when is_list(Data) ->
+	send(list_to_binary(Data));
 send(Bin)  ->
 	ltalk_socket:send(Socket, Bin).
 

@@ -45,7 +45,7 @@ registe_ok_and_error_test() ->
 	?assertEqual(<<"registe success,userid: vivian">>,Req:handle()),
 	
 	Req1 = ltalk_request:new(sock,Line),
-	?assertEqual(<<"registe failed,userid: vivian already_exist">>,Req1:handle()),	
+	?assertEqual(<<"registe failed,userid: vivian already exist">>,Req1:handle()),	
 	
 	meck:unload(ltalk_socket),
 	ok.
@@ -60,7 +60,7 @@ login_ok_and_error_test() ->
 	%%this time userid not registed
 	Line = #line{cmd=?CMD_LOGIN ,data="vivian"},	
 	Req = ltalk_request:new(sock,Line),
-	?assertEqual(<<"login failed,userid: vivian not_found">>,Req:handle()),
+	?assertEqual(<<"login failed,userid: vivian, please registe first!">>,Req:handle()),
 	
 	%%this time test registe a new userid,and result success
 	Line1 = #line{cmd=?CMD_REG ,data="vivian"},
@@ -75,7 +75,7 @@ login_ok_and_error_test() ->
 	%%this time test repeat login use same userid
 	Line3 = #line{cmd=?CMD_LOGIN ,data="vivian"},	
 	Req3 = ltalk_request:new(sock,Line3),
-	?assertEqual(<<"login failed,userid: vivian already_login">>,Req3:handle()),	
+	?assertEqual(<<"login failed,userid: vivian already login">>,Req3:handle()),	
 	
 	meck:unload(ltalk_socket),
 	ok.	

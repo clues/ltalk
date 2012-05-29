@@ -40,8 +40,8 @@
 
 
 
--define(INFO_NOTIFY_REG,"please registe first").
--define(INFO_NOTIFY_LOGIN,"please login first").
+-define(INFO_NOTIFY_REG,"please registe first!").
+-define(INFO_NOTIFY_LOGIN,"please login first!").
 -define(INFO_FORMAT_ERROR,"wrong command format -").
 -define(INFO_NOTIFY_HELP,"====wlecome======"
 					   ++"you can use follow command "
