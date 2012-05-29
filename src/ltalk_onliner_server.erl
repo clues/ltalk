@@ -141,7 +141,7 @@ get_all_test() ->
 	?MODULE:save(R2),
 	?MODULE:save(R3),
 	
-	?assertEqual({ok,[R3,R2,R1]},?MODULE:get(all)).
+	?assertEqual({ok,[R1,R3,R2]},?MODULE:get(all)).
 
 update_test() ->
 	?MODULE:start_link(),

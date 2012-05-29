@@ -18,42 +18,56 @@ get(line) ->
 
 handle() when  Line#line.state == ?ERROR_CODE_CMD_FORMAT ->
 	Response_Data=?INFO_FORMAT_ERROR ++ Line#line.cmd ++ Line#line.data,
-	send(list_to_binary(Response_Data));
+	response(Response_Data);
 
-handle() when Line#line.state == ?ERROR_CODE_UNLOGIN ->
-	Response_Data=?INFO_NOTIFY_LOGIN,
-	send(list_to_binary(Response_Data));
-
-handle() when Line#line.state == ?ERROR_CODE_UNREG ->
-	Response_Data=?INFO_NOTIFY_REG,
-	send(list_to_binary(Response_Data));
+handle() when  Line#line.state == ?ERROR_CODE_CMD_UNKNOWN ->
+	Response_Data=?INFO_UNKNOWN_CMD ++ Line#line.cmd,
+	response(Response_Data);
 
 handle() when  Line#line.cmd == ?CMD_HELP  ->
 	Response_Data = ?INFO_NOTIFY_HELP,
-	send(list_to_binary(Response_Data));
+	response(list_to_binary(Response_Data));
 
 handle() when  Line#line.cmd == ?CMD_QUERY_STATE  ->
-	send(do(query_state,is(logged)));
+	response(do(query_state,is(logged)));
 
 handle() when  Line#line.cmd == ?CMD_QUERY_ONLINERS  ->
-	send(do(query_onliners,is(logged)));
+	response(do(query_onliners,is(logged)));
 
 handle() when  Line#line.cmd == ?CMD_REG  ->
-	send(do(register,is(logged)));
+	response(do(register,is(logged)));
 
 handle() when  Line#line.cmd == ?CMD_LOGIN  ->
-	send(do(login,is(logged)));
+	response(do(login,is(logged)));
 
 %% normal talk message,main handle
 handle() when  Line#line.cmd == undefined  ->
-	case ltalk_onliner_server:get(socket,Socket) of
-		{error,not_found} ->
-				Response_Data=?INFO_NOTIFY_LOGIN,
-				send(list_to_binary(Response_Data));
-		{ok,Onliner} ->
-			{ok,Receiver} = ltalk_onliner_server:get(name,Onliner#onliner.talkto),
-			send(Line#line.data)
-	end.
+	do(talk,is(logged)).
+
+do(talk,Logged) when Logged == false ->
+	response(?INFO_NOTIFY_LOGIN);
+
+do(talk,Logged) when Logged ->
+	{ok,#onliner{talkto=To}=My} = ltalk_onliner_server:get(socket, Socket),
+	case To  of
+		?TALK_TO_ALL -> %%not check whether user off or noexist in current.
+			{ok,L} = ltalk_onliner_server:get(all),
+			L1 = lists:delete(My, L),
+			F = fun(E,L) ->
+						send(E#onliner.socket,Line#line.data),
+						[E|L]
+				end,
+			lists:foldl(F,[], L1);
+		?TALK_TO_GROUP ->
+			keep;
+		One ->
+			case ltalk_onliner_server:get(name, One)	of
+				{error,not_found} ->
+					response(lists:concat(["send error, userid: ",One," off line or not exist !"]));
+				{ok,Receiver} ->
+					send(Receiver#onliner.socket,Line#line.data)
+			end
+	end;
 
 do(register,Logged) when Logged ->
 	lists:concat(["registe failed,userid: ",Line#line.data," already exist"]);
@@ -102,8 +116,7 @@ do(Type,Logged) when Logged==false ->
 	end.
 
 is(logged) ->
-	Name = Line#line.data,
-	case ltalk_onliner_server:get(name, Name) of
+	case ltalk_onliner_server:get(socket, Socket) of
 		{error,not_found} ->
 			false;
 		{ok,R} ->
@@ -121,9 +134,16 @@ is(registered) ->
 			true
 	end.
 
-send(Data) when is_list(Data) ->
-	send(list_to_binary(Data));
-send(Bin)  ->
+send(S,Data) when is_list(Data) ->
+	send(S,list_to_binary(Data));
+
+send(S,Bin) ->
+	ltalk_socket:send(Socket, Bin).
+
+
+response(Data) when is_list(Data) ->
+	response(list_to_binary(Data));
+response(Bin)  ->
 	ltalk_socket:send(Socket, Bin).
 
 

@@ -16,6 +16,7 @@
 -define(CODE_OK,200).
 
 -define(ERROR_CODE_CMD_FORMAT,400).
+-define(ERROR_CODE_CMD_UNKNOWN,404).
 -define(ERROR_CODE_UNREG,401).
 -define(ERROR_CODE_UNLOGIN,402).
 -define(ERROR_CODE_NET_CONNECT,410).
@@ -39,10 +40,10 @@
 -record(chat,{owner,talkto,time,data}).
 
 
-
 -define(INFO_NOTIFY_REG,"please registe first!").
 -define(INFO_NOTIFY_LOGIN,"please login first!").
 -define(INFO_FORMAT_ERROR,"wrong command format -").
+-define(INFO_UNKNOWN_CMD,"unknown command  -").
 -define(INFO_NOTIFY_HELP,"====wlecome======"
 					   ++"you can use follow command "
 	   				   ++"for interacte with other "
