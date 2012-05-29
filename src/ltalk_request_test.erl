@@ -36,8 +36,9 @@ registe_ok_and_error_test() ->
 	meck:new(ltalk_socket),
 	meck:expect(ltalk_socket,send,fun(_S,Bin)->Bin end),
 	ltalk_db_server:start_link(),
-	ltalk_db_server:empty(?TAB_USER),
 	ltalk_onliner_server:start_link(),
+	ltalk_db_server:empty(?TAB_USER),
+	ltalk_onliner_server:delete(all),
 	
 	
 	Line = #line{cmd=?CMD_REG ,data="vivian"},
@@ -54,8 +55,9 @@ login_ok_and_error_test() ->
 	meck:new(ltalk_socket),
 	meck:expect(ltalk_socket,send,fun(_S,Bin)->Bin end),
 	ltalk_db_server:start_link(),
-	ltalk_db_server:empty(?TAB_USER),
 	ltalk_onliner_server:start_link(),
+	ltalk_onliner_server:delete(all),
+	ltalk_db_server:empty(?TAB_USER),
 	
 	%%this time userid not registed
 	Line = #line{cmd=?CMD_LOGIN ,data="vivian"},	
@@ -80,5 +82,50 @@ login_ok_and_error_test() ->
 	meck:unload(ltalk_socket),
 	ok.	
 	
+query_state_error_and_ok_test() ->
+	meck:new(ltalk_socket),
+	meck:expect(ltalk_socket,send,fun(_S,Bin)->Bin end),
+	ltalk_db_server:start_link(),
+	ltalk_db_server:empty(?TAB_USER),
+	ltalk_onliner_server:delete(all),
+	ltalk_onliner_server:start_link(),
+	
+	%%this time user vivian not login at fisrt
+	Line1 = #line{cmd=?CMD_QUERY_STATE ,data="vivian"},
+	Req1 = ltalk_request:new(sock,Line1),
+	?assertEqual(list_to_binary(?INFO_NOTIFY_LOGIN),Req1:handle()),
+	
+	ltalk_onliner_server:save(#onliner{name="vivian",socket=sock,talkto=all,groups=[],state=0}),
+	Req2 = ltalk_request:new(sock,Line1),
+	
+	?assertMatch("==="++_,binary_to_list(Req2:handle())),	
+	
+	meck:unload(ltalk_socket),
+	ok.	
+
+query_onliner_error_and_ok_test() ->
+	meck:new(ltalk_socket),
+	meck:expect(ltalk_socket,send,fun(_S,Bin)->Bin end),
+	ltalk_db_server:start_link(),
+	ltalk_db_server:empty(?TAB_USER),
+	ltalk_onliner_server:delete(all),
+	ltalk_onliner_server:start_link(),
+	
+	%%this time user vivian not login at fisrt
+	Line1 = #line{cmd=?CMD_QUERY_STATE ,data="vivian"},
+	Req1 = ltalk_request:new(sock,Line1),
+	?assertEqual(list_to_binary(?INFO_NOTIFY_LOGIN),Req1:handle()),
+	
+	%%save three user as test data
+	ltalk_onliner_server:save(#onliner{name="vivian",socket=sock,talkto=all,groups=[],state=0}),
+	ltalk_onliner_server:save(#onliner{name="jack",socket=jsock,talkto=all,groups=[],state=1}),
+	ltalk_onliner_server:save(#onliner{name="tom",socket=tsock,talkto=all,groups=[],state=0}),
+	
+	Req2 = ltalk_request:new(sock,#line{cmd=?CMD_QUERY_ONLINERS,data="vivian"}),
+	
+	?assertMatch("==="++ _,binary_to_list(Req2:handle())),	
+	
+	meck:unload(ltalk_socket),
+	ok.	
 
 -endif.

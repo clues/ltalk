@@ -35,6 +35,9 @@ handle() when  Line#line.cmd == ?CMD_HELP  ->
 handle() when  Line#line.cmd == ?CMD_QUERY_STATE  ->
 	send(do(query_state,is(logged)));
 
+handle() when  Line#line.cmd == ?CMD_QUERY_ONLINERS  ->
+	send(do(query_onliners,is(logged)));
+
 handle() when  Line#line.cmd == ?CMD_REG  ->
 	send(do(register,is(logged)));
 
@@ -58,11 +61,31 @@ do(register,Logged) when Logged ->
 do(login,Logged) when Logged ->			
 	lists:concat(["login failed,userid: ",Line#line.data," already login"]);
 
+do(query_onliners,Logged) when Logged==false ->
+	?INFO_NOTIFY_LOGIN;
+
 do(query_state,Logged) when Logged==false ->
 	?INFO_NOTIFY_LOGIN;
 
+do(query_onliners,Logged) when Logged ->
+	{ok,L} = ltalk_onliner_server:get(all),
+	F = fun(E,L) ->
+			L1 = lists:concat(["\r\n id: ",E#onliner.name," state: ",E#onliner.state]),
+			[L1|L]
+		end,
+	L2 = lists:foldl(F, [], L),
+	lists:concat(["============onliners============",
+				  L2,
+				  "\r\n============onliners============"]);
+
 do(query_state,Logged) when Logged ->
-	?INFO_NOTIFY_LOGIN;
+	{ok,Onliner} = ltalk_onliner_server:get(socket, Socket),
+	lists:concat(["============state============",
+				  "\r\n     id: ",Onliner#onliner.name,
+				  "\r\n talkto: ",Onliner#onliner.talkto,
+				  "\r\n groups: ",Onliner#onliner.groups,
+				  "\r\n  state: ",Onliner#onliner.state,
+				  "\r\n============state============"]);
 
 do(Type,Logged) when Logged==false ->			
 	case is(registered) of
