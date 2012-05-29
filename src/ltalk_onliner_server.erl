@@ -12,9 +12,9 @@
 -export([
 		start_link/0,
 		get/1,
+		get/2,
 		 exist/1,
 		 save/1,
-		 get_by_name/1,
 		 delete/1
 	]).
 
@@ -26,21 +26,42 @@
 start_link() ->
 	gen_server:start_link({local,?MODULE},?MODULE, [], []).
 
-%% get online user  by id:socket
-get(Sock) ->
-	gen_server:call(?MODULE, {get,Sock});
-
-%%get all online users from memory
+%%get all onliner users from memory
 get(all) ->
-	gen_server:call(?MODULE, {get,all}).
+	get(undefined,undefined).
 
 %%tell online user whether exist or not by onlier name
 exist(Name) ->
 	gen_server:call(?MODULE, {exist,Name}).
 
-%%get onliner by name
-get_by_name(Name) ->
-	gen_server:call(?MODULE, {get_by_name,Name}).
+%% get list of onliners,return {ok,[Values]},but if key is
+%% socket or name,the return value will be
+%% {error,not_found} | {ok,Value}
+get(Key,Value) when Key == undefined ->
+	Express = #onliner{_='_'},
+	gen_server:call(?MODULE, {get,Express});
+
+get(Key,Value) when Key == name ->
+	Express = #onliner{name=Value, _='_'},
+	case gen_server:call(?MODULE, {get,Express}) of
+		{ok,[]} ->
+			{error,not_found};
+		{ok,L} ->
+			{ok,hd(L)}
+	end;
+
+get(Key,Value) when Key == socket ->
+	Express = #onliner{socket=Value, _='_'},
+	case gen_server:call(?MODULE, {get,Express}) of
+		{ok,[]} ->
+			{error,not_found};
+		{ok,L} ->
+			{ok,hd(L)}
+	end;
+
+get(Key,Value) when Key == state ->
+	Express = #onliner{state=Value, _='_'},
+	gen_server:call(?MODULE, {get,Express}).
 
 %%save a user to memory
 save(Onliner) ->
@@ -55,29 +76,15 @@ delete(Sock) ->
 	gen_server:call(?MODULE, {delete,Sock}).
 
 init([]) ->
-	Tab = ets:new(?MODULE, [set,protected,{keypos,2}]),
+	Tab = ets:new(?MODULE, [set,protected,{keypos,2},{heir,none}]),
     {ok, #state{tab=Tab}}.
 
-handle_call({get,all}, From, State) ->
-	Reply = ets:select(State#state.tab,[{{'$1','$2','$3','$4','$5'},[],['$_']}]),
+
+%% return {ok,[Object]}
+handle_call({get,Express}, From, State) ->
+	Reply = ets:match_object(State#state.tab, Express),
     {reply, {ok,Reply}, State};
 
-handle_call({get,Key}, From, State) ->
-	case ets:lookup(State#state.tab, Key) of
-		[H|T] ->
-			{reply, {ok,H}, State};
-		_ ->
-    		{reply, {error,not_found}, State}
-	end;
-
-handle_call({get_by_name,Name}, From, State) ->
-	Reply = case ets:match(State#state.tab,{'_','_',Name,'_','$1'}) of
-				[] ->
-					{error,not_found};
-				Onliner ->
-					{ok,Onliner}
-			end,
-    {reply, Reply, State};
 
 handle_call({exist,Name}, From, State) ->
 	Reply = case ets:match(State#state.tab,{'_','_',Name,'_','$1'}) of
@@ -135,7 +142,7 @@ get_test() ->
 	?MODULE:save(R2),
 	?MODULE:save(R3),
 	
-	?assertEqual({ok,R1},?MODULE:get(1)).
+	?assertEqual({ok,R1},?MODULE:get(socket,1)).
 
 get_all_test() ->
 	?MODULE:start_link(),
@@ -160,10 +167,10 @@ update_test() ->
 	?MODULE:save(R2),
 	?MODULE:save(R3),
 	
-	?assertEqual({ok,R3},?MODULE:get(3)),
+	?assertEqual({ok,R3},?MODULE:get(socket,3)),
 	?MODULE:save(R4),
 	?assertEqual(3,length(element(2,?MODULE:get(all)))),
-	?assertEqual({ok,R4},?MODULE:get(3)).
+	?assertEqual({ok,R4},?MODULE:get(socket,3)).
 
 get_by_name_test() ->
 	?MODULE:start_link(),
@@ -171,7 +178,7 @@ get_by_name_test() ->
 	R1 = #onliner{socket=1,name="jias",state=0,talkto=[]},
 	?MODULE:save(R1),
 	?assertEqual(true,?MODULE:exist("jias")),
-	?assertEqual(R1,?MODULE:get_by_name("jias")).
+	?assertEqual({ok,R1},?MODULE:get(name,"jias")).
 
 exist_test() ->
 	?MODULE:start_link(),
@@ -213,7 +220,7 @@ delete_test() ->
 	?MODULE:delete(2),
 	
 	?assertEqual(false,?MODULE:exist("jias1")),
-	?assertEqual({error,not_found},?MODULE:get(2)).
+	?assertEqual({error,not_found},?MODULE:get(socket,2)).
 
 
 -endif.

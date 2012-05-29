@@ -25,12 +25,12 @@ handle(Socket,Line) when  Line#line.cmd == ?CMD_HELP  ->
 
 %% normal talk message,main handle
 handle(Socket,Line) when  Line#line.cmd == undefined  ->
-	case ltalk_onliner_server:get(Socket) of
+	case ltalk_onliner_server:get(socket,Socket) of
 		{error,not_found} ->
 				Response_Data=?INFO_NOTIFY_LOGIN,
 				response(Socket,list_to_binary(Response_Data));
-		Onliner ->
-			Receiver = ltalk_onliner_server:get_by_name(Onliner#onliner.talkto),
+		{ok,Onliner} ->
+			{ok,Receiver} = ltalk_onliner_server:get(name,Onliner#onliner.talkto),
 			response(Receiver,Line#line.data)
 	end.
 
