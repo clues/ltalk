@@ -25,7 +25,8 @@ loop(Socket) ->
 	case ltalk_socket:recv(Socket, 0) of
 		{ok,Packet} ->
 			Line = ltalk_decode:getLine(Packet),
-			ltalk_request:handle(Socket, Line),
+			Req = ltalk_request:new(Socket, Line),
+			Req:handle(),
 			loop(Socket);
 		{error,Reason} ->
 			gen_tcp:close(Socket),

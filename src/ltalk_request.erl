@@ -2,73 +2,105 @@
 %% Created: 2012-4-6
 %% Description:ttalk_request,this module the main purpose of packt
 %% original information from client
--module(ltalk_request).
--export([handle/2]).
+-module(ltalk_request,[Socket,Line]).
 -include("ltalk_cmd.hrl").
+-export([
+		 handle/0,
+		 get/1
+		]).
 
 
-handle(Socket,Line) when  Line#line.state == ?ERROR_CODE_CMD_FORMAT ->
+get(socket) ->
+	Socket;
+
+get(line) ->
+	Line.
+
+handle() when  Line#line.state == ?ERROR_CODE_CMD_FORMAT ->
 	Response_Data=?INFO_FORMAT_ERROR ++ Line#line.cmd ++ Line#line.data,
-	response(Socket,list_to_binary(Response_Data));
+	send(list_to_binary(Response_Data));
 
-handle(Socket,Line) when Line#line.state == ?ERROR_CODE_UNLOGIN ->
+handle() when Line#line.state == ?ERROR_CODE_UNLOGIN ->
 	Response_Data=?INFO_NOTIFY_LOGIN,
-	response(Socket,list_to_binary(Response_Data));
+	send(list_to_binary(Response_Data));
 
-handle(Socket,Line) when Line#line.state == ?ERROR_CODE_UNREG ->
+handle() when Line#line.state == ?ERROR_CODE_UNREG ->
 	Response_Data=?INFO_NOTIFY_REG,
-	response(Socket,list_to_binary(Response_Data));
+	send(list_to_binary(Response_Data));
 
-handle(Socket,Line) when  Line#line.cmd == ?CMD_HELP  ->
+handle() when  Line#line.cmd == ?CMD_HELP  ->
 	Response_Data = ?INFO_NOTIFY_HELP,
-	response(Socket,list_to_binary(Response_Data));
+	send(list_to_binary(Response_Data));
+
+handle() when  Line#line.cmd == ?CMD_QUERY_STATE  ->
+	Response_Data = ?INFO_NOTIFY_HELP,
+	send(list_to_binary(Response_Data));
+
+handle() when  Line#line.cmd == ?CMD_REG  ->
+	R = case do_reg() of
+		{error,Reason} ->
+			lists:concat(["registe failed,userid: ",Line#line.data," ",Reason]);
+		ok ->
+			lists:concat(["registe success,userid: ",Line#line.data])
+	end,
+	send(list_to_binary(R));
+
+handle() when  Line#line.cmd == ?CMD_LOGIN  ->
+	R = case do_login() of
+		{error,Reason} ->
+			lists:concat(["login failed,userid: ",Line#line.data," ",Reason]);
+		ok ->
+			lists:concat(["login success,userid: ",Line#line.data])
+	end,
+	send(list_to_binary(R));
 
 %% normal talk message,main handle
-handle(Socket,Line) when  Line#line.cmd == undefined  ->
+handle() when  Line#line.cmd == undefined  ->
 	case ltalk_onliner_server:get(socket,Socket) of
 		{error,not_found} ->
 				Response_Data=?INFO_NOTIFY_LOGIN,
-				response(Socket,list_to_binary(Response_Data));
+				send(list_to_binary(Response_Data));
 		{ok,Onliner} ->
 			{ok,Receiver} = ltalk_onliner_server:get(name,Onliner#onliner.talkto),
-			response(Receiver,Line#line.data)
+			send(Line#line.data)
 	end.
 
-response(Socket,Bin)  ->
+do_reg() ->
+	Name = Line#line.data,
+	case ltalk_onliner_server:get(name, Name) of
+		{error,not_found} ->
+			case ltalk_db_server:get(?TAB_USER, Name) of
+				{error,read_failed} = R->
+					R;
+				{ok,[]} ->
+					ltalk_db_server:save(?TAB_USER, #user{name=Name}),
+					ok;
+				{ok,[_]} ->
+					{error,already_exist}				
+			end;
+		{ok,R} ->
+			{error,already_exist}
+	end.
+
+do_login() ->
+	Name = Line#line.data,
+	case ltalk_onliner_server:get(name, Name) of
+		{error,not_found} ->
+			case ltalk_db_server:get(?TAB_USER, Name) of
+				{error,read_failed} = R->
+					R;
+				{ok,[]} ->
+					{error,not_found};
+				{ok,[_]} ->
+					ltalk_onliner_server:save(#onliner{name=Name,socket=Socket}),
+					ok				
+			end;
+		{ok,R} ->
+			{error,already_login}
+	end.
+  
+send(Bin)  ->
 	ltalk_socket:send(Socket, Bin).
 
 
-%%
-%% Tests
-%%
--ifdef(TEST).
--include_lib("eunit/include/eunit.hrl").
-
-response_error_test() ->
-	meck:new(ltalk_socket),
-	meck:expect(ltalk_socket,send,fun(_S,Bin)->
-										  Bin
-							end),
-	
-	Line1 = #line{cmd=?CMD_LOGIN , state=?ERROR_CODE_CMD_FORMAT,data=" jias jias"},	
-	Bin1 = list_to_binary(?INFO_FORMAT_ERROR ++ ?CMD_LOGIN ++ Line1#line.data),
-	
-	Line2 = #line{cmd=?CMD_HELP , state=?CODE_OK},
-	Bin2 = list_to_binary(?INFO_NOTIFY_HELP),
-	
-	Line3 = #line{cmd=?CMD_LOGIN , state=?ERROR_CODE_UNLOGIN},
-	Bin3 = list_to_binary(?INFO_NOTIFY_LOGIN),
-
-	Line4 = #line{cmd=?CMD_REG , state=?ERROR_CODE_UNREG},
-	Bin4 = list_to_binary(?INFO_NOTIFY_REG),
-	
-	?assertEqual(Bin1,handle(sock,Line1)),
-	?assertEqual(Bin2,handle(sock,Line2)),
-	?assertEqual(Bin3,handle(sock,Line3)),
-	?assertEqual(Bin4,handle(sock,Line4)),
-
-	meck:unload(ltalk_socket),
-	ok.
-
--endif.
 

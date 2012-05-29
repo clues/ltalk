@@ -13,9 +13,8 @@
 		start_link/0,
 		get/1,
 		get/2,
-		 exist/1,
-		 save/1,
-		 delete/1
+		save/1,
+		delete/1
 	]).
 
 
@@ -30,9 +29,6 @@ start_link() ->
 get(all) ->
 	get(undefined,undefined).
 
-%%tell online user whether exist or not by onlier name
-exist(Name) ->
-	gen_server:call(?MODULE, {exist,Name}).
 
 %% get list of onliners,return {ok,[Values]},but if key is
 %% socket or name,the return value will be
@@ -71,12 +67,13 @@ save(Onliner) ->
 delete(all) ->
 	gen_server:call(?MODULE, {delete,all});
 
-%%delete one user from memory by id:socket
-delete(Sock) ->
-	gen_server:call(?MODULE, {delete,Sock}).
+%%delete one user from memory 
+delete(Name) ->
+	gen_server:call(?MODULE, {delete,Name}).
+
 
 init([]) ->
-	Tab = ets:new(?MODULE, [set,protected,{keypos,2},{heir,none}]),
+	Tab = ets:new(?MODULE, [set,protected,{keypos,2}]),
     {ok, #state{tab=Tab}}.
 
 
@@ -84,16 +81,6 @@ init([]) ->
 handle_call({get,Express}, From, State) ->
 	Reply = ets:match_object(State#state.tab, Express),
     {reply, {ok,Reply}, State};
-
-
-handle_call({exist,Name}, From, State) ->
-	Reply = case ets:match(State#state.tab,{'_','_',Name,'_','$1'}) of
-				[] ->
-					false;
-				_ ->
-					true
-			end,
-    {reply, Reply, State};
 
 handle_call({delete,all}, From, State) ->
 	Reply = ets:delete_all_objects(State#state.tab),
@@ -134,7 +121,7 @@ code_change(OldVsn, State, Extra) ->
 
 get_test() ->
 	?MODULE:start_link(),
-	
+	?MODULE:delete(all),
 	R1 = #onliner{socket=1,name="jias",state=0,talkto=[]},
 	R2 = #onliner{socket=2,name="jias1",state=0,talkto=[]},
 	R3 = #onliner{socket=3,name="jias2",state=1,talkto=[]},
@@ -146,7 +133,7 @@ get_test() ->
 
 get_all_test() ->
 	?MODULE:start_link(),
-
+	?MODULE:delete(all),
 	R1 = #onliner{socket=1,name="jias",state=0,talkto=[]},
 	R2 = #onliner{socket=2,name="jias1",state=0,talkto=[]},
 	R3 = #onliner{socket=3,name="jias2",state=1,talkto=[]},
@@ -154,11 +141,11 @@ get_all_test() ->
 	?MODULE:save(R2),
 	?MODULE:save(R3),
 	
-	?assertEqual({ok,[R1,R2,R3]},?MODULE:get(all)).
+	?assertEqual({ok,[R3,R2,R1]},?MODULE:get(all)).
 
 update_test() ->
 	?MODULE:start_link(),
-	
+	?MODULE:delete(all),
 	R1 = #onliner{socket=1,name="jias",state=0,talkto=[]},
 	R2 = #onliner{socket=2,name="jias1",state=0,talkto=[]},
 	R3 = #onliner{socket=3,name="jias2",state=1,talkto=[]},
@@ -167,22 +154,20 @@ update_test() ->
 	?MODULE:save(R2),
 	?MODULE:save(R3),
 	
-	?assertEqual({ok,R3},?MODULE:get(socket,3)),
+	?assertEqual({ok,R3},?MODULE:get(name,"jias2")),
 	?MODULE:save(R4),
-	?assertEqual(3,length(element(2,?MODULE:get(all)))),
-	?assertEqual({ok,R4},?MODULE:get(socket,3)).
+	?assertEqual({ok,R4},?MODULE:get(name,"chao")).
 
 get_by_name_test() ->
 	?MODULE:start_link(),
-	
+	?MODULE:delete(all),
 	R1 = #onliner{socket=1,name="jias",state=0,talkto=[]},
 	?MODULE:save(R1),
-	?assertEqual(true,?MODULE:exist("jias")),
 	?assertEqual({ok,R1},?MODULE:get(name,"jias")).
 
 exist_test() ->
 	?MODULE:start_link(),
-	
+	?MODULE:delete(all),
 	R1 = #onliner{socket=1,name="jias",state=0,talkto=[]},
 	R2 = #onliner{socket=2,name="jias1",state=0,talkto=[]},
 	R3 = #onliner{socket=3,name="jias2",state=1,talkto=[]},
@@ -190,12 +175,12 @@ exist_test() ->
 	?MODULE:save(R2),
 	?MODULE:save(R3),
 	
-	?assertEqual(false,?MODULE:exist("jias0")),
-	?assertEqual(true,?MODULE:exist("jias1")).
+	?assertEqual({error,not_found},?MODULE:get(name,"jias0")),
+	?assertEqual({ok,R2},?MODULE:get(name,"jias1")).
 
 delete_all_test() ->
 	?MODULE:start_link(),
-
+	?MODULE:delete(all),
 	R1 = #onliner{socket=1,name="jias",state=0,talkto=[]},
 	R2 = #onliner{socket=2,name="jias1",state=0,talkto=[]},
 	R3 = #onliner{socket=3,name="jias2",state=1,talkto=[]},
@@ -209,7 +194,7 @@ delete_all_test() ->
 
 delete_test() ->
 	?MODULE:start_link(),
-
+	?MODULE:delete(all),
 	R1 = #onliner{socket=1,name="jias",state=0,talkto=[]},
 	R2 = #onliner{socket=2,name="jias1",state=0,talkto=[]},
 	R3 = #onliner{socket=3,name="jias2",state=1,talkto=[]},
@@ -217,9 +202,8 @@ delete_test() ->
 	?MODULE:save(R2),
 	?MODULE:save(R3),
 	
-	?MODULE:delete(2),
+	?MODULE:delete("jias1"),
 	
-	?assertEqual(false,?MODULE:exist("jias1")),
 	?assertEqual({error,not_found},?MODULE:get(socket,2)).
 
 

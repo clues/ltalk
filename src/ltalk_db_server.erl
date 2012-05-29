@@ -10,8 +10,6 @@
 -behaviour(gen_server).
 
 -include("ltalk_cmd.hrl").
--define(TAB_USER,user).
--define(TAB_CHAT,chat).
 
 -export([start_link/0,
 		 stop/0,
@@ -31,8 +29,8 @@
 save(TabName,Record) ->
 	gen_server:call(?MODULE, {save_or_update,TabName,Record}).
 
-%% get record by Key from table TabName,
-%% return records list
+%% get list of records from table TabName by Key,
+%% return {error,read_failed} | {ok,[Records]}
 get(TabName,Key) ->
 	gen_server:call(?MODULE, {get,TabName,Key}).
 

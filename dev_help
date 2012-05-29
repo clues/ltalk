@@ -1,0 +1,64 @@
+
+#{onliner,name,socket,talkto=all,group=[],state}
+parse(socket bin) ->
+	Line ->
+		1 format error:
+			1) normal format
+			2) unknown cmd
+			
+		2 reg cmd -> do_check(ets false->from db):
+			exist ->
+				do_reponse(error,reg);
+			noexist ->
+				do_insert(ets)
+				do_reponse(ok,reg)
+				
+		3 login cmd ->do_check(ets):
+			already_login ->
+				do_reponse(error,login)
+			un_login ->
+				do_insert(ets)
+				do_response(ok,userlist)	
+				
+		4  normal ->
+				do_check(sock)->
+					noexist ->
+						do_response(ok,request_info);
+					exist ->
+						do_check(talkto) ->
+							all ->
+								do_send(all,request_info)
+							group ->
+								[] ->
+									do_response(error,"please add receivers fisrt")
+								group ->
+									do_send(group,request_info)
+							Person ->
+								do_send(Person,request_info)								
+								
+		5 state cmd ->do_check(socket):
+			noexist ->
+				do_response(error,"please login fisrt")
+			exist ->
+				do_response(ok,user_current_info)
+				
+		6 switch cmd ->do_check(socket):
+			noexist ->
+				do_response(error,"please login fisrt")
+			exist ->
+					do_switch(talkto),
+					do_response(ok,user_current_info)	
+					
+		7 history cmd ->do_check(socket)
+			noexist ->
+				do_response(error,"please login fisrt")
+			exist -> 
+				do_query(user_chats,db)
+				do_response(ok,user_chats)
+				
+		8 add/del(group) cmd ->do_check(socket):
+			noexist ->
+				do_response(error,"please login fisrt")
+			exist ->
+				do_add(group,Persons)/do_del(group,Persons),
+				do_response(ok,user_current_info)					
