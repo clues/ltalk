@@ -12,7 +12,6 @@ start_link(Server, Listen) ->
 init(Server,ListenSocket) ->
 	case gen_tcp:accept(ListenSocket) of
 		{ok,Socket} ->
-			 error_logger:info_msg("receive one~n"),
 			gen_server:cast(Server, {accepted,self()}),
 			loop(Socket);
 		{error,Reason} ->
