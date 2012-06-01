@@ -103,6 +103,7 @@ recycle_acceptor(Pid, #socket_server{
             State#socket_server{active_sockets=ActiveSockets - 1}
     end.
 
+%%init new a acceptor pool
 new_acceptor_pool(#socket_server{acceptor_pool=Pool,
                                  acceptor_pool_size=Size} = State) ->
 	F = fun (_, Pool) ->
@@ -158,7 +159,7 @@ socket_server_accepted_ok_test() ->
     ?assertEqual(State#socket_server.acceptor_pool_size, length(PidList)),
 	?assertEqual(0, State#socket_server.active_sockets),
 	
-	%%init the server has accpeted two link
+	%%init the server has accpeted two connection
 	gen_server:cast(?MODULE, {accepted,lists:nth(1, PidList)}),
 	gen_server:cast(?MODULE, {accepted,lists:nth(2, PidList)}),
 	
@@ -179,11 +180,11 @@ socket_server_acceptor_error_test() ->
     ?assertEqual(State#socket_server.acceptor_pool_size, length(PidList)),
 	?assertEqual(0, State#socket_server.active_sockets),
 	
-	%%init the server has accpeted two link
+	%%init the server has accpeted two connection
 	gen_server:cast(?MODULE, {accepted,lists:nth(1, PidList)}),
 	gen_server:cast(?MODULE, {accepted,lists:nth(2, PidList)}),
 	
-	%%kill one link
+	%%kill one connection
 	exit(lists:nth(1, PidList),kill),
 	
 	timer:sleep(1000),
