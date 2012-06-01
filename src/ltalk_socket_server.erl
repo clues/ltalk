@@ -11,7 +11,8 @@
 -export([
 		 start_link/0,
 		 start_link/1,
-		 stop/0
+		 stop/0,
+		 get_state/0
 		]).
 
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
@@ -37,6 +38,9 @@ start_link(Opts) ->
 
 stop() ->
 	gen_server:cast(?MODULE, stop).
+
+get_state() ->
+	gen_server:call(?MODULE, {get,state}).
 
 init(Opts) ->
 	process_flag(trap_exit, true),
@@ -89,7 +93,7 @@ recycle_acceptor(Pid, #socket_server{
                         acceptor_pool=Pool,
                         listen=Listen,
                         active_sockets=ActiveSockets} = State) ->
-    case sets:is_element(Pid, Pool) of
+	case sets:is_element(Pid, Pool) of
         true ->
 			
             Acceptor = ltalk_acceptor:start_link(self(), Listen),
@@ -124,29 +128,70 @@ listen(State) ->
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
 
-socket_server_init_test() ->
-	ltalk_socket_server:start_link(),
-	State = gen_server:call(?MODULE, {get,state}),
+acceptor_loop(Server) ->
+	receive
+		{accepted,From} ->
+			gen_server:cast(Server, {accepted,self()}),
+			acceptor_loop(Server);
+		{exit,Reason} ->
+			exit(Reason)
+	end.
 	
-	timer:sleep(2000),
+
+socket_server_init_test() ->
+	?MODULE:start_link(),
+	State = ?MODULE:get_state(),
+	
+	timer:sleep(1000),
 	?assertEqual(0, State#socket_server.active_sockets),
 	?assertNotEqual(null, State#socket_server.listen),
     ?assertEqual(State#socket_server.acceptor_pool_size, sets:size(State#socket_server.acceptor_pool)).
 
 
-socket_server_accept_one_test() ->
-	ltalk_socket_server:start_link(),
-    {ok,Socket} = gen_tcp:connect("192.168.208.27", ?DEFAULT_LISTEN_PORT, []),
+socket_server_accepted_ok_test() ->
+	?MODULE:start_link(),
 	
-	timer:sleep(2000),
-	State = gen_server:call(?MODULE, {get,state}),
+
+	State = ?MODULE:get_state(),
+	PidList = sets:to_list(State#socket_server.acceptor_pool),
 	
-	?assertNotEqual(null, State#socket_server.listen),
-    ?assertEqual(State#socket_server.acceptor_pool_size, sets:size(State#socket_server.acceptor_pool)),
-	?assertEqual(1, State#socket_server.active_sockets),
+    ?assertEqual(State#socket_server.acceptor_pool_size, length(PidList)),
+	?assertEqual(0, State#socket_server.active_sockets),
 	
-	gen_tcp:close(Socket),
-	ltalk_socket_server:stop(),
+	%%init the server has accpeted two link
+	gen_server:cast(?MODULE, {accepted,lists:nth(1, PidList)}),
+	gen_server:cast(?MODULE, {accepted,lists:nth(2, PidList)}),
+	
+	timer:sleep(1000),
+	State1 = ?MODULE:get_state(),
+    ?assertEqual(State1#socket_server.acceptor_pool_size, sets:size(State1#socket_server.acceptor_pool)),
+	?assertEqual(2, State1#socket_server.active_sockets),
+	
+	?MODULE:stop(),
+	ok.
+
+socket_server_acceptor_error_test() ->
+	?MODULE:start_link(),
+	
+	State = ?MODULE:get_state(),
+	PidList = sets:to_list(State#socket_server.acceptor_pool),
+	
+    ?assertEqual(State#socket_server.acceptor_pool_size, length(PidList)),
+	?assertEqual(0, State#socket_server.active_sockets),
+	
+	%%init the server has accpeted two link
+	gen_server:cast(?MODULE, {accepted,lists:nth(1, PidList)}),
+	gen_server:cast(?MODULE, {accepted,lists:nth(2, PidList)}),
+	
+	%%kill one link
+	exit(lists:nth(1, PidList),kill),
+	
+	timer:sleep(1000),
+	State1 = ?MODULE:get_state(),
+    ?assertEqual(State1#socket_server.acceptor_pool_size, sets:size(State1#socket_server.acceptor_pool)),
+	?assertEqual(1, State1#socket_server.active_sockets),
+	
+	?MODULE:stop(),
 	ok.
 
 -endif.

@@ -3,7 +3,11 @@
 %% Description: TODO: Add description to ltalk_acceptor
 -module(ltalk_acceptor).
 
--export([start_link/2]).
+-export([
+		 start_link/2,
+		 init/2,
+		 loop/1
+		 ]).
 -include("ltalk_cmd.hrl").
 
 start_link(Server, Listen) ->
