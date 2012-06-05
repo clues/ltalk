@@ -13,11 +13,15 @@
 
 
 start(Port) ->
-	ltalk_socket_server:start([{port,Port}]),
+	ltalk_db_server:start_link(),
+	ltalk_onliner_server:start_link(),
+	ltalk_socket_server:start_link([{port,Port}]),
 	ok.
 
 
 stop() ->
+	ltalk_db_server:stop(),
+	ltalk_socket_server:stop(),
 	ltalk_socket_server:stop().
 
 
@@ -28,4 +32,27 @@ stop() ->
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
 
+client_test() ->
+	?MODULE:start(4017),
+	
+	{ok,S} = gen_tcp:connect("127.0.0.1", 4017, [list,{active,true}]),
+	wait_msg(),
+	gen_tcp:send(S,packet( "-help~n")),
+	wait_msg(),
+	
+	?MODULE:stop(),
+	ok.
+
+packet(Msg) ->
+	list_to_binary(Msg).
+
+wait_msg() ->
+	receive
+		Msg ->
+				error_logger:info_msg("receive: ~p", [Msg])
+	after 2000 ->
+			error_logger:info_msg("timeout")
+	end.
+	
+	
 -endif.

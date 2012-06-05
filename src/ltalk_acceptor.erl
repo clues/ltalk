@@ -17,6 +17,7 @@ init(Server,ListenSocket) ->
 	case gen_tcp:accept(ListenSocket) of
 		{ok,Socket} ->
 			gen_server:cast(Server, {accepted,self()}),
+			ltalk_socket:send(Socket, ?INFO_WELCOME),
 			loop(Socket);
 		{error,Reason} ->
 			exit(Reason)

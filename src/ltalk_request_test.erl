@@ -13,6 +13,18 @@
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
 
+help_test() ->
+	meck:new(ltalk_socket),
+	meck:expect(ltalk_socket,send,fun(_S,Bin)->Bin end),
+	
+	Line1 = #line{cmd=?CMD_HELP ,data=""},	
+	Bin1 = list_to_binary(?INFO_NOTIFY_HELP),
+	Req1 = ltalk_request:new(sock,Line1),
+	?assertEqual(Bin1,Req1:handle()),
+
+	meck:unload(ltalk_socket),
+	ok.
+
 cmd_format_error_test() ->
 	meck:new(ltalk_socket),
 	meck:expect(ltalk_socket,send,fun(_S,Bin)->Bin end),

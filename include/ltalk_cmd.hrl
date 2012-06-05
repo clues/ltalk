@@ -44,7 +44,10 @@
 -define(INFO_NOTIFY_LOGIN,"please login first!").
 -define(INFO_FORMAT_ERROR,"wrong command format -").
 -define(INFO_UNKNOWN_CMD,"unknown command  -").
--define(INFO_NOTIFY_HELP,"====wlecome======"
+-define(INFO_WELCOME,"====welcome======\r\n"++
+										"               ltalk                  \r\n"++
+										"====welcome======").
+-define(INFO_NOTIFY_HELP,"====welcome======"
 					   ++"you can use follow command "
 	   				   ++"for interacte with other "
 	                   ++"-help  #get all command "
