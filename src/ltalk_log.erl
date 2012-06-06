@@ -30,32 +30,43 @@
 start_link() ->
 	gen_server:start_link({local,?MODULE}, ?MODULE, [], []).
 
+%% debug(Msg::term());
 debug(_Msg)->
 	debug("~p",[_Msg]).
 
+%% debug(Format::string(),Msg::term())
 debug(_Fmat,_Msg) ->
 	gen_server:cast(?MODULE, {debug,_Fmat,_Msg}).
 
+%% info(Msg::term());
 info(_Msg)->
 	info("~p",[_Msg]).
 
+%% info(Format::string(),Msg::term())
 info(_Fmat,_Msg) ->
 	gen_server:cast(?MODULE, {info,_Fmat,_Msg}).	
 
+%% warn(Msg::term());
 warn(_Msg)->
 	warn("~p",[_Msg]).
 
+%% warn(Format::string(),Msg::term())
 warn(_Fmat,_Msg) ->
 	gen_server:cast(?MODULE, {warn,_Fmat,_Msg}).	
 
+%% error(Msg::term());
 error(_Msg)->
 	error("~p",[_Msg]).
+
+%% error(Format::string(),Msg::term())
 error(_Fmat,_Msg) ->
 	gen_server:cast(?MODULE, {error,_Fmat,_Msg}).
 
+%% fatal(Msg::term());
 fatal(_Msg)->
 	fatal("~p",[_Msg]).
 
+%% fatal(Format::string(),Msg::term())
 fatal(_Fmat,_Msg) ->
 	gen_server:cast(?MODULE, {fatal,_Fmat,_Msg}).
 
@@ -95,7 +106,7 @@ handle_cast({change_level,Type,Level},State) when Type == ?TYPE_FILE ->
 
 handle_cast({change_level,Type,Level},State) when Type == ?TYPE_CONSOLE ->
 	Value = map_value(Level),
-	{noreply, State#state{flog=#consolelogger{level=Value}}};
+	{noreply, State#state{clog=#consolelogger{level=Value}}};
 
 handle_cast({Level,Fmat,Msg}, #state{clog=#consolelogger{level=Clevel},
 									 flog=#filelogger{level=Flevel},
@@ -113,7 +124,6 @@ handle_cast({Level,Fmat,Msg}, #state{clog=#consolelogger{level=Clevel},
 			ingored
 	end,
     {noreply, State}.
-
 
 
 handle_info(Info, State) ->
@@ -138,8 +148,8 @@ print_to(?TYPE_FILE,{Level,Fmat,Msg,Filename}) ->
 	print_to_file(Level,Fmat,Msg,Filename).
 	
 print_to_console(Level,Fmat,Msg) ->
-	_Fmat = "[~p] ~p " ++ Fmat ++ "~n",
-	io:format(_Fmat,[Level,get_time()|Msg]).
+	_Fmat = "[~p] ~p " ++ Fmat ++ "~n",	
+	?PRINT(_Fmat,[Level,get_time()]++Msg).
 
 print_to_file(Level,Fmat,Msg,Filename) ->
 	_Fmat = "[~p] ~p " ++ Fmat ++ ?Newline,
@@ -162,5 +172,19 @@ map_value(?FATAL) ->
 %%
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
+	
+info_warn_test() ->
+	
+	?MODULE:start_link(),
+	?MODULE:info("hello"),
+	?MODULE:change_level({?TYPE_CONSOLE,?WARN}),
+	
+	%%this info will not print on console
+	?MODULE:info("world"),
+	?MODULE:warn("warn map value : ~p", [?VALUE_WARN]),
+	
+	State = bagarg,
+	?MODULE:error("erlang run error with reason: ~p", [State]),
+	ok.
 	
 -endif.

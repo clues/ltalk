@@ -2,46 +2,77 @@
 %% Created: 2012-4-6
 %% Description:ttalk_request,this module the main purpose of packt
 %% original information from client
--module(ltalk_request,[Socket,Line]).
+-module(ltalk_request,[Socket]).
 -include("ltalk_cmd.hrl").
 -export([
-		 handle/0,
+		 handle/1,
 		 get/1
 		]).
 
+-ifdef(TEST).
+
+	put(line,Line) ->
+		erlang:put(line, Line).
+
+	-compile(export_all).
+
+-endif.
 
 get(socket) ->
 	Socket;
-
 get(line) ->
-	Line.
+	erlang:get(line).
 
-handle() when  Line#line.state == ?ERROR_CODE_CMD_FORMAT ->
+handle(Packet) when ?MAX_LEN_INFO < length(Packet) ->
+	response(?INFO_TOO_LARGE);
+
+handle(Packet) when  lists:sublist(Packet, Start, Len)->
+	response(?INFO_TOO_LARGE);
+
+handle(Packet) when not is_record(Packet, line) ->
+	Len = ,
+	case lists:sublist(Packet, Len-2, Len) of
+		
+	
+	if
+		?MAX_LEN_INFO < Len ->
+			
+			exit(?ERROR_CODE_INFO_TOO_LARGE);
+		?END_TAG ==  ->
+			response(?INFO_INCOMPLETE),
+			exit(?ERROR_CODE_INFO_INCOMPLETE);
+		true ->
+			Line = ltalk_decode:getLine(lists:sublist(Packet, Len-2)),
+			erlang:put(line,Line),
+			handle(Line)
+	end;
+
+handle(Line) when  Line#line.state == ?ERROR_CODE_CMD_FORMAT ->
 	Response_Data=?INFO_FORMAT_ERROR ++ Line#line.cmd ++ Line#line.data,
 	response(Response_Data);
 
-handle() when  Line#line.state == ?ERROR_CODE_CMD_UNKNOWN ->
+handle(Line) when  Line#line.state == ?ERROR_CODE_CMD_UNKNOWN ->
 	Response_Data=?INFO_UNKNOWN_CMD ++ Line#line.cmd,
 	response(Response_Data);
 
-handle() when  Line#line.cmd == ?CMD_HELP  ->
+handle(Line) when  Line#line.cmd == ?CMD_HELP  ->
 	Response_Data = ?INFO_NOTIFY_HELP,
 	response(list_to_binary(Response_Data));
 
-handle() when  Line#line.cmd == ?CMD_QUERY_STATE  ->
+handle(Line) when  Line#line.cmd == ?CMD_QUERY_STATE  ->
 	response(do(query_state,is(logged)));
 
-handle() when  Line#line.cmd == ?CMD_QUERY_ONLINERS  ->
+handle(Line) when  Line#line.cmd == ?CMD_QUERY_ONLINERS  ->
 	response(do(query_onliners,is(logged)));
 
-handle() when  Line#line.cmd == ?CMD_REG  ->
+handle(Line) when  Line#line.cmd == ?CMD_REG  ->
 	response(do(register,is(logged)));
 
-handle() when  Line#line.cmd == ?CMD_LOGIN  ->
+handle(Line) when  Line#line.cmd == ?CMD_LOGIN  ->
 	response(do(login,is(logged)));
 
 %% normal talk message,main handle
-handle() when  Line#line.cmd == undefined  ->
+handle(Line) when  Line#line.cmd == undefined  ->
 	do(talk,is(logged)).
 
 do(talk,Logged) when Logged == false ->
@@ -49,6 +80,7 @@ do(talk,Logged) when Logged == false ->
 
 do(talk,Logged) when Logged ->
 	{ok,#onliner{talkto=To}=My} = ltalk_onliner_server:get(socket, Socket),
+	Line = erlang:get(line),
 	case To  of
 		?TALK_TO_ALL -> %%not check whether user off or noexist in current.
 			{ok,L} = ltalk_onliner_server:get(all),
@@ -70,9 +102,11 @@ do(talk,Logged) when Logged ->
 	end;
 
 do(register,Logged) when Logged ->
+	Line = erlang:get(line),
 	lists:concat(["registe failed,userid: ",Line#line.data," already exist"]);
 
-do(login,Logged) when Logged ->			
+do(login,Logged) when Logged ->
+	Line = erlang:get(line),
 	lists:concat(["login failed,userid: ",Line#line.data," already login"]);
 
 do(query_onliners,Logged) when Logged==false ->
@@ -102,6 +136,7 @@ do(query_state,Logged) when Logged ->
 				  "\r\n============state============"]);
 
 do(Type,Logged) when Logged==false ->			
+	Line = erlang:get(line),
 	case is(registered) of
 		true when 'login' == Type ->
 			ltalk_onliner_server:save(#onliner{name=Line#line.data,socket=Socket}),
@@ -124,6 +159,7 @@ is(logged) ->
 	end;
 
 is(registered) ->
+	Line = erlang:get(line),
 	Name = Line#line.data,
 	case ltalk_db_server:get(?TAB_USER, Name) of
 		{error,read_failed} ->

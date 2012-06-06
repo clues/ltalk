@@ -43,10 +43,22 @@ get_cmd(undefined) ->
 	undefined;
 get_cmd(?CMD_HELP) ->
 	?CMD_HELP;
+get_cmd(?CMD_REG) ->
+	?CMD_REG;
 get_cmd(?CMD_LOGIN) ->
 	?CMD_LOGIN;
 get_cmd(?CMD_HISTORY) ->
 	?CMD_HISTORY;
+get_cmd(?CMD_SWITCH) ->
+	?CMD_SWITCH;
+get_cmd(?CMD_QUERY_STATE) ->
+	?CMD_QUERY_STATE;
+get_cmd(?CMD_QUERY_ONLINERS) ->
+	?CMD_QUERY_ONLINERS;
+get_cmd(?CMD_ADD) ->
+	?CMD_ADD;
+get_cmd(?CMD_DEL) ->
+	?CMD_DEL;
 get_cmd(_Cmd) ->
 	unknowncmd.
 
@@ -59,15 +71,29 @@ fliter_cmd(Line,Cmd) ->
 	check_cmd_format(NewLine).
 
 
-check_cmd_format(Line) when Line#line.cmd == ?CMD_HELP ->
+check_cmd_format(#line{cmd=Cmd} = Line)
+  		when Cmd == ?CMD_HELP orelse
+			 Cmd == ?CMD_QUERY_STATE orelse
+			 Cmd == ?CMD_QUERY_ONLINERS orelse
+			 Cmd == ?CMD_QUIT ->
 	format(Line,0);
-check_cmd_format(Line) when Line#line.cmd == ?CMD_LOGIN ->
+
+check_cmd_format(#line{cmd=Cmd} = Line) 
+  		when Cmd == ?CMD_REG orelse
+			 Cmd == ?CMD_LOGIN orelse
+			 Cmd == ?CMD_SWITCH orelse
+			 Cmd == ?CMD_DEL ->
 	format(Line,1);
-check_cmd_format(Line) when Line#line.cmd == ?CMD_HISTORY ->
+
+check_cmd_format(#line{cmd=Cmd} = Line) 
+  		when Cmd == ?CMD_HISTORY orelse
+			 Cmd == ?CMD_ADD ->
 	format(Line,2);
+
 check_cmd_format(Line) ->
 	Line.
 
+%%Line data section must match ArgsNum
 format(Line,ArgsNum) ->
 	Tokens = string:tokens(Line#line.data," "),
 	if

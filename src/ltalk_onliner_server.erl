@@ -73,7 +73,7 @@ delete(Name) ->
 
 
 init([]) ->
-	Tab = ets:new(?MODULE, [set,protected,{keypos,2}]),
+	Tab = ets:new(?MODULE, [ordered_set,protected,{keypos,2}]),
     {ok, #state{tab=Tab}}.
 
 
@@ -131,17 +131,17 @@ get_test() ->
 	
 	?assertEqual({ok,R1},?MODULE:get(socket,1)).
 
-%% get_all_test() ->
-%% 	?MODULE:start_link(),
-%% 	?MODULE:delete(all),
-%% 	R1 = #onliner{socket=1,name="jias",state=0,talkto=[]},
-%% 	R2 = #onliner{socket=2,name="jias1",state=0,talkto=[]},
-%% 	R3 = #onliner{socket=3,name="jias2",state=1,talkto=[]},
-%% 	?MODULE:save(R1),
-%% 	?MODULE:save(R2),
-%% 	?MODULE:save(R3),
-%% 	
-%% 	?assertEqual({ok,[R1,R3,R2]},?MODULE:get(all)).
+get_all_test() ->
+	?MODULE:start_link(),
+	?MODULE:delete(all),
+	R1 = #onliner{socket=1,name="jias",state=0,talkto=[]},
+	R2 = #onliner{socket=2,name="jias1",state=0,talkto=[]},
+	R3 = #onliner{socket=3,name="jias2",state=1,talkto=[]},
+	?MODULE:save(R1),
+	?MODULE:save(R2),
+	?MODULE:save(R3),
+	
+	?assertEqual({ok,[R1,R2,R3]},?MODULE:get(all)).
 
 update_test() ->
 	?MODULE:start_link(),

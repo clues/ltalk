@@ -21,3 +21,10 @@
 
 -record(filelogger,{level=?WARN,dir=".",file="smplog.txt",size=2048,rotation=5,format}).
 -record(consolelogger,{level=?DEBUG,format}).
+
+
+-ifdef(TEST).
+-define(PRINT(Fmt,Msg),error_logger:info_msg(Fmt, Msg)).
+-else.
+-define(PRINT(Fmt,Msg),io:format(Fmt, Msg)).
+-endif.

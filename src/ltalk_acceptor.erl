@@ -18,28 +18,23 @@ init(Server,ListenSocket) ->
 		{ok,Socket} ->
 			gen_server:cast(Server, {accepted,self()}),
 			ltalk_socket:send(Socket, ?INFO_WELCOME),
-			loop(Socket);
+			Req = ltalk_request:new(Socket),
+			loop(Req);
 		{error,Reason} ->
 			exit(Reason)
 	end.
 
 
 
-loop(Socket) ->
-	case ltalk_socket:recv(Socket, 0) of
+loop(Req) ->
+	case ltalk_socket:recv(Req:get(socket), 0) of
 		{ok,Packet} ->
-			Line = ltalk_decode:getLine(Packet),
-			Req = ltalk_request:new(Socket, Line),
-			Req:handle(),
-			loop(Socket);
+			Req:handle(Packet),
+			loop(Req);
 		{error,Reason} ->
-			gen_tcp:close(Socket),
+			gen_tcp:close(Req:get(socket)),
 			exit(Reason)
 	end.
-
-
-
-
 
 
 %%
