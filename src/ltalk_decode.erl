@@ -59,13 +59,15 @@ get_cmd(?CMD_ADD) ->
 	?CMD_ADD;
 get_cmd(?CMD_DEL) ->
 	?CMD_DEL;
+get_cmd(?CMD_QUIT) ->
+	?CMD_QUIT;
 get_cmd(_Cmd) ->
 	unknowncmd.
 
 fliter_cmd(Line,Cmd) when Cmd == undefined ->
 	Line;
 fliter_cmd(Line,Cmd) when Cmd == unknowncmd ->
-	#line{cmd='unknowncmd',data=("-"++Line#line.cmd++Line#line.data)};
+	#line{cmd='unknowncmd',data=("-"++Line#line.cmd++Line#line.data),state=?ERROR_CODE_CMD_UNKNOWN};
 fliter_cmd(Line,Cmd) ->
 	NewLine = #line{cmd=Cmd,data=Line#line.data},
 	check_cmd_format(NewLine).
@@ -123,9 +125,9 @@ parseLine_with_cmd_test() ->
 	?assertEqual(#line{cmd="login",data=["jias"]},getLine(" -login   jias")).
 
 fliter_cmd_with_undefined_cmd_test() ->
-	?assertEqual(#line{cmd='unknowncmd',data="-loginlogin   jias"},getLine(" -loginlogin   jias")).
+	?assertEqual(#line{cmd='unknowncmd',data="-loginlogin   jias",state=?ERROR_CODE_CMD_UNKNOWN},getLine(" -loginlogin   jias")).
 fliter_cmd_with_cmd_flag_test() ->
-	?assertEqual(#line{cmd='unknowncmd',data="- "},getLine(" - ")).
+	?assertEqual(#line{cmd='unknowncmd',data="- ",state=?ERROR_CODE_CMD_UNKNOWN},getLine(" - ")).
 
 format_cmd_0_ok_test() ->
 	?assertEqual(#line{cmd="help",data=[]},getLine(" -help ")).

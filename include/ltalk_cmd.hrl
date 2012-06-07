@@ -30,7 +30,9 @@
 -define(TAB_USER,user).
 -define(TAB_CHAT,chat).
 
--define(END_TAG,<<13,10>>). %%info end tag \r\n
+-define(PROMPT_TAG,"ltalk>").
+-define(END_TAG_L,"\r\n"). %%info end tag list "\r\n" 
+-define(END_TAG_B,<<13,10>>). %%info end tag binary (\r\n)  
 -define(MAX_LEN_INFO,256).  %%max length of info receive form client
 
 -define(TALK_TO_ALL,0).
@@ -47,16 +49,20 @@
 
 -define(INFO_NOTIFY_REG,"please registe first!").
 -define(INFO_NOTIFY_LOGIN,"please login first!").
--define(INFO_TOO_LARGE,"message too large,server refuse!").
+-define(INFO_LEN_NOT_MEET,"message size not meet requirement,server refuse!").
 -define(INFO_INCOMPLETE,"incomplete message,server refuse!").
 -define(INFO_FORMAT_ERROR,"wrong command format -").
 -define(INFO_UNKNOWN_CMD,"unknown command  -").
--define(INFO_WELCOME,"====welcome======\r\n"++
-										"               ltalk                  \r\n"++
-										"====welcome======").
--define(INFO_NOTIFY_HELP,"====welcome======"
-					   ++"you can use follow command "
-	   				   ++"for interacte with other "
-	                   ++"-help  #get all command "
-	                   ++"-reg id  #registe you infomation "
-	                   ++"-login id #login in system ").
+-define(INFO_WELCOME,"====welcome======\r\n" ++
+		             "      ltalk      \r\n" ++
+                     "====welcome======\r\n").
+-define(INFO_NOTIFY_HELP,"=================command detail================\r\n" ++
+			             "   -help       #get all command\r\n" ++
+			             "   -reg id     #registe you infomation\r\n"++
+			             "   -login id   #login in system\r\n" ++
+			             "   -switch who #switch chat to one,group or all\r\n"++
+			             "   -qs         #query your current state\r\n"++
+			             "   -ql         #query onliners list at current\r\n"++
+			             "   -add id     #add some one to group\r\n"++
+			             "   -del id     #delete some one from group\r\n"++
+			             "   -history    #query your history chat records\r\n").

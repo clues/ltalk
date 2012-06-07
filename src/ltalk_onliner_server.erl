@@ -11,6 +11,7 @@
 
 -export([
 		start_link/0,
+		stop/0,
 		get/1,
 		get/2,
 		save/1,
@@ -24,6 +25,9 @@
 
 start_link() ->
 	gen_server:start_link({local,?MODULE},?MODULE, [], []).
+
+stop() ->
+	gen_server:cast(?MODULE, stop).
 
 %%get all onliner users from memory
 get(all) ->
@@ -63,7 +67,8 @@ get(Key,Value) when Key == state ->
 save(Onliner) ->
 	gen_server:call(?MODULE, {save_or_update,Onliner}).
 
-%%delete all user from memory
+%%delete user from memory by user Name
+%%if Name is all ,will delete all users
 delete(all) ->
 	gen_server:call(?MODULE, {delete,all});
 
@@ -98,6 +103,8 @@ handle_call(Request, From, State) ->
     Reply = ok,
     {reply, Reply, State}.
 
+handle_cast(stop, State) ->
+    {stop, normal, State};
 
 handle_cast(Msg, State) ->
     {noreply, State}.
@@ -192,7 +199,7 @@ delete_all_test() ->
 	
 	?assertEqual({ok,[]},?MODULE:get(all)).
 
-delete_test() ->
+delete_by_name_test() ->
 	?MODULE:start_link(),
 	?MODULE:delete(all),
 	R1 = #onliner{socket=1,name="jias",state=0,talkto=[]},
@@ -205,7 +212,6 @@ delete_test() ->
 	?MODULE:delete("jias1"),
 	
 	?assertEqual({error,not_found},?MODULE:get(socket,2)).
-
 
 -endif.
 

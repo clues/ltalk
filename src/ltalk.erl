@@ -13,6 +13,7 @@
 
 
 start(Port) ->
+	ltalk_log:start_link(),
 	ltalk_db_server:start_link(),
 	ltalk_onliner_server:start_link(),
 	ltalk_socket_server:start_link([{port,Port}]),
@@ -21,7 +22,7 @@ start(Port) ->
 
 stop() ->
 	ltalk_db_server:stop(),
-	ltalk_socket_server:stop(),
+	ltalk_onliner_server:stop(),
 	ltalk_socket_server:stop().
 
 
@@ -49,9 +50,9 @@ packet(Msg) ->
 wait_msg() ->
 	receive
 		Msg ->
-				error_logger:info_msg("receive: ~p", [Msg])
+				error_logger:info_msg("~p -- receive: ~p~n", [?MODULE,Msg])
 	after 2000 ->
-			error_logger:info_msg("timeout")
+			error_logger:info_msg("~p -- wait msg timeout~n",[?MODULE])
 	end.
 	
 	

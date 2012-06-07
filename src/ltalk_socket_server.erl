@@ -9,7 +9,6 @@
 -behaviour(gen_server).
 
 -export([
-		 start_link/0,
 		 start_link/1,
 		 stop/0,
 		 get_state/0
@@ -30,11 +29,13 @@
         acceptor_pool_size=16
 		}).
 
-start_link() ->
-	gen_server:start_link({local,?MODULE},?MODULE, [{port,?DEFAULT_LISTEN_PORT}], []).
-
 start_link(Opts) ->
-	gen_server:start_link({local,?MODULE},?MODULE, Opts, []).
+	case whereis(?MODULE) of
+		'undefined' ->
+			gen_server:start_link({local,?MODULE},?MODULE, Opts, []);
+		_ ->
+			ignored
+	end.					 
 
 stop() ->
 	gen_server:cast(?MODULE, stop).
@@ -140,17 +141,18 @@ acceptor_loop(Server) ->
 	
 
 socket_server_init_test() ->
-	?MODULE:start_link(),
+	?MODULE:start_link([{port,?DEFAULT_LISTEN_PORT}]),
 	State = ?MODULE:get_state(),
 	
 	timer:sleep(1000),
 	?assertEqual(0, State#socket_server.active_sockets),
 	?assertNotEqual(null, State#socket_server.listen),
-    ?assertEqual(State#socket_server.acceptor_pool_size, sets:size(State#socket_server.acceptor_pool)).
+    ?assertEqual(State#socket_server.acceptor_pool_size, sets:size(State#socket_server.acceptor_pool)),
+	ok.
 
 
 socket_server_accepted_ok_test() ->
-	?MODULE:start_link(),
+	?MODULE:start_link([{port,?DEFAULT_LISTEN_PORT}]),
 	
 
 	State = ?MODULE:get_state(),
@@ -172,7 +174,7 @@ socket_server_accepted_ok_test() ->
 	ok.
 
 socket_server_acceptor_error_test() ->
-	?MODULE:start_link(),
+	?MODULE:start_link([{port,?DEFAULT_LISTEN_PORT}]),
 	
 	State = ?MODULE:get_state(),
 	PidList = sets:to_list(State#socket_server.acceptor_pool),

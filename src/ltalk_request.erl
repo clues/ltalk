@@ -6,7 +6,8 @@
 -include("ltalk_cmd.hrl").
 -export([
 		 handle/1,
-		 get/1
+		 get/1,
+		 response/1
 		]).
 
 -ifdef(TEST).
@@ -23,29 +24,13 @@ get(socket) ->
 get(line) ->
 	erlang:get(line).
 
-handle(Packet) when ?MAX_LEN_INFO < length(Packet) ->
-	response(?INFO_TOO_LARGE);
+handle(Packet) when is_list(Packet),length(Packet) ==0 ->
+	response(<<>>);
 
-handle(Packet) when  lists:sublist(Packet, Start, Len)->
-	response(?INFO_TOO_LARGE);
-
-handle(Packet) when not is_record(Packet, line) ->
-	Len = ,
-	case lists:sublist(Packet, Len-2, Len) of
-		
-	
-	if
-		?MAX_LEN_INFO < Len ->
-			
-			exit(?ERROR_CODE_INFO_TOO_LARGE);
-		?END_TAG ==  ->
-			response(?INFO_INCOMPLETE),
-			exit(?ERROR_CODE_INFO_INCOMPLETE);
-		true ->
-			Line = ltalk_decode:getLine(lists:sublist(Packet, Len-2)),
-			erlang:put(line,Line),
-			handle(Line)
-	end;
+handle(Packet) when is_list(Packet) ->
+	Line = ltalk_decode:getLine(Packet),
+	erlang:put(line,Line),
+	handle(Line);			
 
 handle(Line) when  Line#line.state == ?ERROR_CODE_CMD_FORMAT ->
 	Response_Data=?INFO_FORMAT_ERROR ++ Line#line.cmd ++ Line#line.data,
@@ -57,7 +42,7 @@ handle(Line) when  Line#line.state == ?ERROR_CODE_CMD_UNKNOWN ->
 
 handle(Line) when  Line#line.cmd == ?CMD_HELP  ->
 	Response_Data = ?INFO_NOTIFY_HELP,
-	response(list_to_binary(Response_Data));
+	response(Response_Data);
 
 handle(Line) when  Line#line.cmd == ?CMD_QUERY_STATE  ->
 	response(do(query_state,is(logged)));
@@ -71,9 +56,20 @@ handle(Line) when  Line#line.cmd == ?CMD_REG  ->
 handle(Line) when  Line#line.cmd == ?CMD_LOGIN  ->
 	response(do(login,is(logged)));
 
+handle(Line) when  Line#line.cmd == ?CMD_QUIT  ->
+	response(do(quit,is(logged)));
+
 %% normal talk message,main handle
 handle(Line) when  Line#line.cmd == undefined  ->
 	do(talk,is(logged)).
+
+do(quit,Logged) when Logged == false ->
+	response(?INFO_NOTIFY_LOGIN);
+
+do(quit,Logged) when Logged ->
+	{ok,#onliner{name=Name}} = ltalk_onliner_server:get(socket, Socket),
+	ltalk_onliner_server:delete(Name),
+	exit(normal);
 
 do(talk,Logged) when Logged == false ->
 	response(?INFO_NOTIFY_LOGIN);
@@ -118,22 +114,22 @@ do(query_state,Logged) when Logged==false ->
 do(query_onliners,Logged) when Logged ->
 	{ok,L} = ltalk_onliner_server:get(all),
 	F = fun(E,L) ->
-			L1 = lists:concat(["\r\n id: ",E#onliner.name," state: ",E#onliner.state]),
+			L1 = lists:concat(["   id: ",E#onliner.name," state: ",E#onliner.state,?END_TAG_L]),
 			[L1|L]
 		end,
 	L2 = lists:foldl(F, [], L),
-	lists:concat(["============onliners============",
+	lists:concat(["============onliners============",?END_TAG_L,
 				  L2,
-				  "\r\n============onliners============"]);
+				  "============onliners============",?END_TAG_L]);
 
 do(query_state,Logged) when Logged ->
 	{ok,Onliner} = ltalk_onliner_server:get(socket, Socket),
-	lists:concat(["============state============",
-				  "\r\n     id: ",Onliner#onliner.name,
-				  "\r\n talkto: ",Onliner#onliner.talkto,
-				  "\r\n groups: ",Onliner#onliner.groups,
-				  "\r\n  state: ",Onliner#onliner.state,
-				  "\r\n============state============"]);
+	lists:concat(["============state============",?END_TAG_L,
+				  "   id:     ",Onliner#onliner.name,?END_TAG_L,
+				  "   talkto: ",Onliner#onliner.talkto,?END_TAG_L,
+				  "   groups: ",Onliner#onliner.groups,?END_TAG_L,
+				  "   state:  ",Onliner#onliner.state,?END_TAG_L,
+				  "============state============",?END_TAG_L]);
 
 do(Type,Logged) when Logged==false ->			
 	Line = erlang:get(line),
@@ -170,15 +166,17 @@ is(registered) ->
 			true
 	end.
 
+
+%%b->s->b use this function
 send(S,Data) when is_list(Data) ->
 	send(S,list_to_binary(Data));
 
 send(S,Bin) ->
 	ltalk_socket:send(Socket, Bin).
 
-
+%%b->s module,use this function
 response(Data) when is_list(Data) ->
-	response(list_to_binary(Data));
+	response(list_to_binary(Data++?END_TAG_L++?PROMPT_TAG));
 response(Bin)  ->
 	ltalk_socket:send(Socket, Bin).
 
