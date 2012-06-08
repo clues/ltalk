@@ -1,30 +1,64 @@
 
 
 
-   ##        ltalk          ##
+   ##        ltalk    exercise      ##
 This project is example about talk server,
 basic with tcp protocol,but server use line
 as basic message mode,like '****\r\n',
 so client use telnet command at terminal will 
 supported well.
 
-step 1
+Start ltalk server
+    ltalk:start(port).
+    #ltalk:start(4017).
+
+Start one client
     telnet ip port
+    #telnet 127.0.0.1 4017 
 
-step 2
-    enter -help to get more command infomation
+Get more command -help
+    enter -help will get all command details from server,
+    then you can use one command to interactive with server
 
-step 3 
-    registe usename
+CMD: -reg ID
+     -reg is register ID to server,ID is unique  
+     'all' and 'group' will as keyword latter,you'd better not use them
 
-step 4 
-    login server
+CMD: -login ID
+    -login is login in server,if you want talk to others,you must login in at first,
+     or you only interactive with server,
+     ID only be one person used at the same time
 
-step 5 
-    talk to group or one gay who your known her or his id
+CMD: -switch ID
+    -switch decide you talk to one?
+    if ID is 'all',talk to all onliners,it's default all
+    if ID is 'group',talk to users who in your group list
+    if ID is one user id,you only talk with he/she 
+    
+CMD: -qs
+    -qs query you current state,include your id,
+    group list,who are you talk with,etc.
+    
+CMD: -ql
+    -ql query all online at current,include their info and state,
+    only in this way you can known talk to someone
+    
+CMD: -add ID
+    -add one(ID) to your group,only support a group at current,
+    so group name not required,group default is null
 
+CMD: -del ID
+    -delete one(ID) from your group    
 
-note: this only an exercise with Erlang
+CMD: -history
+    -history query all history chat records
+    
+CMD: -quit
+     -quit quit from ltalk and terminate socket connection
+
+note: 
+     1 command(begin with char '-') format very strict,if format error,error info will response
+     2 unkonwn command not support,and if you use it,error info will response
 
 
 
