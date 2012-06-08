@@ -1,8 +1,7 @@
-
 becase like mochiweb style greatly,so write a chat server
 as exercise
    ##        ltalk    exercise      ##
-ltakl use line as message mode to parse,if client send message
+ltalk use line as message mode to parse,if client send message
 like this format '*****\r\n',ltalk will receive and handle it.
 you can use telnet cmd interactive with ltalk in console terminate 
 
