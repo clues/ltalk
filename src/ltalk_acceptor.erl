@@ -16,11 +16,15 @@ start_link(Server, Listen) ->
 init(Server,ListenSocket) ->
 	case gen_tcp:accept(ListenSocket) of
 		{ok,Socket} ->
+			ltalk_log:info("~p -- acceptor:~p received one connection from socket: ~p", 
+						   [?MODULE,self(),ltalk_socket:peername_str(Socket)]),
 			gen_server:cast(Server, {accepted,self()}),
 			Req = ltalk_request:new(Socket),
 			Req:response(?INFO_WELCOME),
 			loop(Req);
 		{error,Reason} ->
+			ltalk_log:error("~p -- acceptor: ~p error with reason: ~p",
+							[?MODULE,self(),Reason] ),
 			exit(Reason)
 	end.
 

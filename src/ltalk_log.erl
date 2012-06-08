@@ -146,14 +146,14 @@ print_to(?TYPE_CONSOLE,{Level,Fmat,Msg,_Filename}) ->
 
 print_to(?TYPE_FILE,{Level,Fmat,Msg,Filename}) ->
 	print_to_file(Level,Fmat,Msg,Filename).
-	
+
 print_to_console(Level,Fmat,Msg) ->
 	_Fmat = "[~p] ~p " ++ Fmat ++ "~n",	
-	?PRINT(_Fmat,[Level,get_time()]++Msg).
+	?PRINT(_Fmat,[Level,ltalk_util:local_time_string()]++Msg).
 
 print_to_file(Level,Fmat,Msg,Filename) ->
 	_Fmat = "[~p] ~p " ++ Fmat ++ ?Newline,
-	Data = io_lib:format(_Fmat, [Level,get_time()|Msg]),
+	Data = io_lib:format(_Fmat, [Level,ltalk_util:local_time_string()]++Msg),
 	ok = file:write_file(Filename, Data, [binary,append]).
 
 map_value(?DEBUG) ->
@@ -172,19 +172,19 @@ map_value(?FATAL) ->
 %%
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
-	
+
 info_warn_test() ->
-	
+
 	?MODULE:start_link(),
 	?MODULE:info("hello"),
 	?MODULE:change_level({?TYPE_CONSOLE,?WARN}),
-	
+
 	%%this info will not print on console
 	?MODULE:info("world"),
 	?MODULE:warn("warn map value : ~p", [?VALUE_WARN]),
-	
+
 	State = bagarg,
 	?MODULE:error("erlang run error with reason: ~p", [State]),
 	ok.
-	
+
 -endif.

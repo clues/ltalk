@@ -52,7 +52,7 @@
 -define(INFO_LEN_NOT_MEET,"message size not meet requirement,server refuse!").
 -define(INFO_INCOMPLETE,"incomplete message,server refuse!").
 -define(INFO_FORMAT_ERROR,"wrong command format -").
--define(INFO_UNKNOWN_CMD,"unknown command  -").
+-define(INFO_UNKNOWN_CMD,"unknown command: -").
 -define(INFO_WELCOME,"====welcome======\r\n" ++
 		             "      ltalk      \r\n" ++
                      "====welcome======\r\n").

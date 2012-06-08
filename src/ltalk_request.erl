@@ -11,18 +11,22 @@
 		]).
 
 -ifdef(TEST).
+-compile(export_all).
 
-	put(line,Line) ->
-		erlang:put(line, Line).
+put(line,Line) ->
+	erlang:put(line, Line);
 
-	-compile(export_all).
+put(id,Name) ->
+	erlang:put(id, Name).
 
 -endif.
 
 get(socket) ->
 	Socket;
 get(line) ->
-	erlang:get(line).
+	erlang:get(line);
+get(id) ->
+	erlang:get(id).
 
 handle(Packet) when is_list(Packet),length(Packet) ==0 ->
 	response(<<>>);
@@ -60,11 +64,11 @@ handle(Line) when  Line#line.cmd == ?CMD_QUIT  ->
 	response(do(quit,is(logged)));
 
 %% normal talk message,main handle
-handle(Line) when  Line#line.cmd == undefined  ->
+handle(Line) when  Line#line.cmd == 'undefined'  ->
 	do(talk,is(logged)).
 
 do(quit,Logged) when Logged == false ->
-	response(?INFO_NOTIFY_LOGIN);
+	exit(normal);
 
 do(quit,Logged) when Logged ->
 	{ok,#onliner{name=Name}} = ltalk_onliner_server:get(socket, Socket),
@@ -85,15 +89,21 @@ do(talk,Logged) when Logged ->
 						send(E#onliner.socket,Line#line.data),
 						[E|L]
 				end,
-			lists:foldl(F,[], L1);
+			lists:foldl(F,[], L1),
+			response("");
 		?TALK_TO_GROUP ->
-			keep;
+			response("waitting...");
 		One ->
 			case ltalk_onliner_server:get(name, One)	of
 				{error,not_found} ->
-					response(lists:concat(["send error, userid: ",One," off line or not exist !"]));
+					response(lists:concat(["send failed, user: ",One," not online!"]));
 				{ok,Receiver} ->
-					send(Receiver#onliner.socket,Line#line.data)
+					case send(Receiver#onliner.socket,Line#line.data) of
+						ok ->
+							response("");
+						{error,Reason} ->
+							response(lists:concat(["send failed,socket excpetion: ",Reason]))
+					end
 			end
 	end;
 
@@ -136,6 +146,7 @@ do(Type,Logged) when Logged==false ->
 	case is(registered) of
 		true when 'login' == Type ->
 			ltalk_onliner_server:save(#onliner{name=Line#line.data,socket=Socket}),
+			erlang:put(id, Line#line.data),
 			lists:concat(["login success,userid: ",Line#line.data]);
 		true ->
 			lists:concat(["registe failed,userid: ",Line#line.data," already exist"]);
@@ -167,16 +178,21 @@ is(registered) ->
 	end.
 
 
-%%b->s->b use this function
-send(S,Data) when is_list(Data) ->
-	send(S,list_to_binary(Data));
+%%b->s->b mode return ok|{error,Reason}
+send(Remote,Data) when is_list(Data) ->
+	Title = lists:concat(["\r\n",erlang:get(id)," ",ltalk_util:local_time_string(),?END_TAG_L]),
+	send(Remote,list_to_binary(Title++Data ++ ?END_TAG_L ++ ?PROMPT_TAG));
 
-send(S,Bin) ->
-	ltalk_socket:send(Socket, Bin).
+send(Remote,Bin) ->
+	ltalk_socket:send(Remote, Bin).
 
-%%b->s module,use this function
+%%b->s mode return ok|{error,Reason}
+response("") ->
+	response(list_to_binary(?PROMPT_TAG));
+
 response(Data) when is_list(Data) ->
 	response(list_to_binary(Data++?END_TAG_L++?PROMPT_TAG));
+
 response(Bin)  ->
 	ltalk_socket:send(Socket, Bin).
 

@@ -67,11 +67,11 @@ registe_ok_and_error_test() ->
 	Line = #line{cmd=?CMD_REG ,data="vivian"},
 	Req = ltalk_request:new(sock),
 	Req:put(line,Line),
-	?assertMatch("registe success,userid: vivian"++_,binary_to_list(Req:handle(Line))),
+	<<"registe success,userid: vivian",_/binary>> = Req:handle(Line),
 	
 	Req1 = ltalk_request:new(sock),
 	Req1:put(line,Line),
-	?assertMatch("registe failed,userid: vivian already exist"++_,binary_to_list(Req1:handle(Line))),	
+	<<"registe failed,userid: vivian already exist",_/binary>> =Req1:handle(Line),	
 	
 	meck:unload(ltalk_socket),
 	ok.
@@ -123,7 +123,7 @@ query_state_error_and_ok_test() ->
 	ltalk_onliner_server:save(#onliner{name="vivian",socket=sock,talkto=all,groups=[],state=0}),
 	Req2 = ltalk_request:new(sock),
 	
-	?assertMatch("============state============"++_,binary_to_list(Req2:handle(Line1))),	
+	<<"============state============",_/binary>> = Req2:handle(Line1),	
 	
 	meck:unload(ltalk_socket),
 	ok.	
@@ -171,6 +171,9 @@ talking_not_login_test() ->
 	ok.
 
 quit_test() ->
+	
+	%%take self process as socket server
+	process_flag(trap_exit,true),
 	meck:new(ltalk_socket),
 	meck:expect(ltalk_socket,send,fun(_S,Bin)->Bin end),
 	ltalk_db_server:start_link(),
@@ -180,78 +183,93 @@ quit_test() ->
 	
 	%%this time user vivian not login at fisrt
 	Line1 = #line{cmd=?CMD_QUIT ,data=""},
-	Req1 = ltalk_request:new(sock),
-	<<?INFO_NOTIFY_LOGIN,_/binary>> = Req1:handle(Line1),
-	
-	ltalk_onliner_server:save(#onliner{name="jack",socket=jsock,talkto="tom",groups=[],state=1}),
-	Req2 = ltalk_request:new(jsock),
-	Req2:handle(Line1),
+	spawn_link(fun() ->
+					   Req1 = ltalk_request:new(sock),
+					   Req1:handle(Line1)
+			   end),
 	receive
-		Msg ->
-			error_logger:info_msg("hhhhhh :~p", [Msg])
-	after 2000 ->
-			error_logger:info_msg("timeout")
+		{'EXIT',Pid,normal} ->
+			ok
+	after 1000 ->
+			exit(timeout)
 	end,
 	meck:unload(ltalk_socket),
 	ok.	
 
-%% talking_to_one_test() ->
-%% 	meck:new(ltalk_socket),
-%% 	meck:expect(ltalk_socket,send,fun(_S,Bin)->Bin end),
-%% 	ltalk_db_server:start_link(),
-%% 	ltalk_db_server:empty(?TAB_USER),
-%% 	ltalk_onliner_server:delete(all),
-%% 	ltalk_onliner_server:start_link(),
-%% 	
-%% 	%%save  users as test data
-%% 	ltalk_onliner_server:save(#onliner{name="jack",socket=jsock,talkto="tom",groups=[],state=1}),
-%% 	ltalk_onliner_server:save(#onliner{name="tom",socket=tsock,talkto=all,groups=[],state=0}),
-%% 	
-%% 	%%this time user vivian not login at fisrt
-%% 	Line = #line{cmd='undefined' ,data="hello world"},
-%% 	Req = ltalk_request:new(jsock),
-%% 	<<"hello world">> = Req:handle(Line),
-%% 	
-%% 	meck:unload(ltalk_socket),
-%% 	ok.
-%% 
-%% talking_to_noexist_men_test() ->
-%% 	meck:new(ltalk_socket),
-%% 	meck:expect(ltalk_socket,send,fun(_S,Bin)->Bin end),
-%% 	ltalk_db_server:start_link(),
-%% 	ltalk_db_server:empty(?TAB_USER),
-%% 	ltalk_onliner_server:delete(all),
-%% 	ltalk_onliner_server:start_link(),
-%% 	
-%% 	%%save  users as test data
-%% 	ltalk_onliner_server:save(#onliner{name="jack",socket=jsock,talkto="tom",groups=[],state=1}),
-%% 	
-%% 	%%this time user vivian not login at fisrt
-%% 	Line = #line{cmd='undefined' ,data="hello world"},
-%% 	Req = ltalk_request:new(jsock),
-%% 	<<"send error, userid: tom off line or not exist !",_/binary>> = Req:handle(Line),
-%% 	
-%% 	meck:unload(ltalk_socket),
-%% 	ok.
-%% 
-%% talking_to_all_test() ->
-%% 	meck:new(ltalk_socket),
-%% 	meck:expect(ltalk_socket,send,fun(_S,Bin)->Bin end),
-%% 	ltalk_db_server:start_link(),
-%% 	ltalk_db_server:empty(?TAB_USER),
-%% 	ltalk_onliner_server:delete(all),
-%% 	ltalk_onliner_server:start_link(),
-%% 	
-%% 	%%save  users as test data
-%% 	ltalk_onliner_server:save(#onliner{name="jack",socket=jsock,talkto=?TALK_TO_ALL,groups=[],state=1}),
-%% 	ltalk_onliner_server:save(#onliner{name="tom",socket=tsock,talkto="abc",groups=[],state=0}),
-%% 	
-%% 	%%this time user vivian not login at fisrt
-%% 	Line = #line{cmd='undefined' ,data="hello world"},
-%% 	Req = ltalk_request:new(jsock,Line),
-%% 	?assertEqual(1,length(Req:handle())),
-%% 	
-%% 	meck:unload(ltalk_socket),
-%% 	ok.
+talking_to_one_not_online_test() ->
+	meck:new(ltalk_socket),
+	meck:expect(ltalk_socket,send,fun(_S,Bin)->Bin end),
+	ltalk_db_server:start_link(),
+	ltalk_db_server:empty(?TAB_USER),
+	ltalk_onliner_server:delete(all),
+	ltalk_onliner_server:start_link(),
+	
+	%%save  users as test data
+	ltalk_onliner_server:save(#onliner{name="jack",socket=jsock,talkto="tom",groups=[],state=1}),
+	
+	
+	Line = #line{cmd='undefined' ,data="hello world"},
+	Req = ltalk_request:new(jsock),
+	<<"send failed, user: tom not online!",_/binary>> = Req:handle(Line),
+	
+	meck:unload(ltalk_socket),
+	ok.
+
+talking_to_one_socket_excpetion_test() ->
+	meck:new(ltalk_socket),
+	meck:expect(ltalk_socket,send,fun(S,Bin)-> case S of
+												   tsock ->
+													   {error,nosocket};
+												   jsock ->
+													   Bin
+											   end
+								 end),
+	ltalk_db_server:start_link(),
+	ltalk_db_server:empty(?TAB_USER),
+	ltalk_onliner_server:delete(all),
+	ltalk_onliner_server:start_link(),
+	
+	%%save  users as test data
+	ltalk_onliner_server:save(#onliner{name="jack",socket=jsock,talkto="tom",groups=[],state=1}),
+	ltalk_onliner_server:save(#onliner{name="tom",socket=tsock,talkto=all,groups=[],state=0}),
+	
+	%%this time user vivian not login at fisrt
+	Line = #line{cmd='undefined' ,data="hello world"},
+	Req = ltalk_request:new(jsock),
+	Req:put(id,"jack"),
+	
+	<<"send failed,socket excpetion: ",_/binary>> = Req:handle(Line),
+	
+	meck:unload(ltalk_socket),
+	ok.
+
+talking_to_one_ok_test() ->
+	meck:new(ltalk_socket),
+	meck:expect(ltalk_socket,send,fun(_S,Bin)-> case _S of
+													tsock ->
+														ok;
+													jsock ->
+														Bin
+												end
+				end),
+	ltalk_db_server:start_link(),
+	ltalk_db_server:empty(?TAB_USER),
+	ltalk_onliner_server:delete(all),
+	ltalk_onliner_server:start_link(),
+	
+	%%save  users as test data
+	ltalk_onliner_server:save(#onliner{name="jack",socket=jsock,talkto="tom",groups=[],state=1}),
+	ltalk_onliner_server:save(#onliner{name="tom",socket=tsock,talkto=all,groups=[],state=0}),
+	
+	%%this time user vivian not login at fisrt
+	Line = #line{cmd='undefined' ,data="hello world"},
+	Req = ltalk_request:new(jsock),
+	Req:put(line,Line),
+	Req:put(id,"jack"),
+	
+	<<?PROMPT_TAG>> = Req:handle(Line),
+	
+	meck:unload(ltalk_socket),
+	ok.
 
 -endif.

@@ -68,7 +68,9 @@ handle_cast(Msg, State) ->
 
 handle_info({'EXIT', Pid, Reason},
             State=#socket_server{acceptor_pool=Pool}) ->
-    case sets:is_element(Pid, Pool) of
+    ltalk_log:warn("~p -- pid: ~p exit with reason: ~p",
+				    [?MODULE,Pid,Reason]),
+	case sets:is_element(Pid, Pool) of
         true ->
 %%             error_logger:error_report({?MODULE, ?LINE,
 %%                                        {acceptor_error, Reason}}),
@@ -118,8 +120,11 @@ new_acceptor_pool(#socket_server{acceptor_pool=Pool,
 listen(State) ->
 		case gen_tcp:listen(State#socket_server.port, ?DEFAULT_SOCKET_OPTS) of
 			{ok,ListenSocket} ->
+				ltalk_log:info("~p -- socket server success listen on port ~p",
+							    [?MODULE,State#socket_server.port]),
 				{ok,new_acceptor_pool(State#socket_server{listen=ListenSocket})};
 			{error,Reason} ->
+				ltalk_log:error("listen port:~p error with reason: ~p", [?DEFAULT_LISTEN_PORT,Reason]),
 				{stop,Reason}
 		end.
 
