@@ -3,7 +3,8 @@ as exercise
    ##        ltalk    exercise      ##
 ltalk use line as message mode to parse,if client send message
 like this format '*****\r\n',ltalk will receive and handle it.
-you can use telnet cmd interactive with ltalk in console terminate 
+in order to make it easy to test,you can use telnet cmd interactive
+with ltalk in console,or code yourself GUI client 
 
 Start ltalk server
     ltalk:start(port).
