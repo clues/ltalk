@@ -1,12 +1,10 @@
 
-
-
+becase like mochiweb style greatly,so write a chat server
+as exercise
    ##        ltalk    exercise      ##
-This project is example about talk server,
-basic with tcp protocol,but server use line
-as basic message mode,like '****\r\n',
-so client use telnet command at terminal will 
-supported well.
+ltakl use line as message mode to parse,if client send message
+like this format '*****\r\n',ltalk will receive and handle it.
+you can use telnet cmd interactive with ltalk in console terminate 
 
 Start ltalk server
     ltalk:start(port).
