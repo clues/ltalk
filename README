@@ -28,7 +28,7 @@ CMD: -login ID
      ID only be one person used at the same time
 
 CMD: -switch ID
-    -switch decide you talk to one?
+    -switch talk to one who you decided first?
     if ID is 'all',talk to all onliners,it's default all
     if ID is 'group',talk to users who in your group list
     if ID is one user id,you only talk with he/she 
