@@ -10,9 +10,11 @@
 -export([start/1,
 		 stop/0]).
 
+%% for script start
+start([Port]) when is_atom(Port) ->
+        start(list_to_integer(atom_to_list(Port)));
 
-
-start(Port) ->
+start(Port) when is_integer(Port) ->
 	ltalk_log:start_link(),
 	ltalk_db_server:start_link(),
 	ltalk_onliner_server:start_link(),
