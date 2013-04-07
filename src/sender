@@ -1,0 +1,239 @@
+%%% -------------------------------------------------------------------
+%%% Author  : clues
+%%% Description :
+%%%
+%%% Created : Apr 3, 2013
+%%% -------------------------------------------------------------------
+-module(sender).
+
+-behaviour(gen_server).
+%% --------------------------------------------------------------------
+%% Include files
+%% --------------------------------------------------------------------
+-include_lib("kernel/include/file.hrl").
+
+
+-define(DEFAULT_PORT,7777).
+-define(DEFAULT_LEN,16*1024*1024).
+-define(DEFAULT_PATH,"/tmp").
+-define(TIMEOUT,2000).
+-define(TYPE_SEND,sent).
+-define(TYPE_RECEIVE,received).
+-define(FILE_WRITE_OPEN_OPTIONS,[write,read,raw,binary]).
+-define(SO_OPTIONS,[binary, {packet, 0},{active,false}]).
+%% --------------------------------------------------------------------
+%% External exports
+-export([start_link/0,
+  	 start_link/1,
+		 send/2,
+		 send/3,
+		 send/4,
+		 stop/1,
+		 accept/1]).
+
+%% gen_server callbacks
+-export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
+
+-record(state, {lsock}).
+-record(info,{dir,file,so,fd,size,temp_size=0}).
+-record(process,{file,type,value}).
+
+%% ====================================================================
+%% External functions
+%% ====================================================================
+stop(Reason) ->
+	gen_server:cast(?MODULE, Reason).
+
+start_link() ->
+	start_link(?DEFAULT_PORT).
+start_link(Port) ->
+	gen_server:start({local,?MODULE},?MODULE, [Port], []).
+
+send(File,Ip) ->
+	send(File,Ip,?DEFAULT_PORT).
+send(File,Ip,Port) ->
+	send(File,Ip,Port,?DEFAULT_PATH).
+send(File,Ip,Port,Dir) ->
+	case filelib:is_file(File) of
+		false ->
+			error_logger:error_msg("file:~p not exist~n",[File]);
+		true ->
+			case gen_tcp:connect(Ip,Port,?SO_OPTIONS,?TIMEOUT) of
+				{ok,So} ->
+					{ok,#file_info{size=Size}}=file:read_file_info(File),
+					gen_tcp:send(So, term_to_binary(#info{file=filename:basename(File),dir=Dir,size=Size})),
+					case gen_tcp:recv(So, 0) of
+						{ok,Bin} ->
+							case binary_to_term(Bin) of
+								{error,Er} ->
+									error_logger:error_msg("recieve error from remote:~p~n",[Er]);
+								{ok,_} ->
+									{ok,Fd} = prim_file:open(File,?FILE_WRITE_OPEN_OPTIONS),
+									send_read(#info{file=File,dir=Dir,so=So,fd=Fd,size=Size})
+							end;
+						Error ->
+							error_logger:error_msg("receive sock error:~p~n",[Error])
+					end;
+				{error,R} ->
+					error_logger:error_msg("connect to{ip:~p,port:~p} failed with error:~p~n",[Ip,
+																							   Port,
+																							   R]),
+					{error,R}
+			end
+	end.
+%% ====================================================================
+%% Server functions
+%% ====================================================================
+
+%% --------------------------------------------------------------------
+%% Function: init/1
+%% Description: Initiates the server
+%% Returns: {ok, State}          |
+%%          {ok, State, Timeout} |
+%%          ignore               |
+%%          {stop, Reason}
+%% --------------------------------------------------------------------
+init([Port]) ->
+	case gen_tcp:listen(Port,[{active,false}|?SO_OPTIONS]) of
+		{ok,Lsock} ->
+			error_logger:info_msg("~p -- listen on port:~p ok~n", [?MODULE,Port]),
+			proc_lib:spawn(?MODULE,accept,[Lsock]),
+			{ok, #state{lsock=Lsock}};
+		{error,Error} ->
+			error_logger:info_msg("~p -- listen on port:~p failed by reason:~p~n", [?MODULE,Port,Error]),
+			{stop, normal}
+	end.
+
+%% --------------------------------------------------------------------
+%% Function: handle_call/3
+%% Description: Handling call messages
+%% Returns: {reply, Reply, State}          |
+%%          {reply, Reply, State, Timeout} |
+%%          {noreply, State}               |
+%%          {noreply, State, Timeout}      |
+%%          {stop, Reason, Reply, State}   | (terminate/2 is called)
+%%          {stop, Reason, State}            (terminate/2 is called)
+%% --------------------------------------------------------------------
+handle_call(Request, From, State) ->
+    Reply = ok,
+    {reply, Reply, State}.
+
+%% --------------------------------------------------------------------
+%% Function: handle_cast/2
+%% Description: Handling cast messages
+%% Returns: {noreply, State}          |
+%%          {noreply, State, Timeout} |
+%%          {stop, Reason, State}            (terminate/2 is called)
+%% --------------------------------------------------------------------
+handle_cast({stop,Reason}, #state{lsock=L}=State) ->
+	gen_tcp:close(L),
+	error_logger:info_msg("stop server with reason:~p~n", [Reason]),
+    {stop,normal,State};
+
+handle_cast(Msg, State) ->
+    {noreply, State}.
+
+%% --------------------------------------------------------------------
+%% Function: handle_info/2
+%% Description: Handling all non call/cast messages
+%% Returns: {noreply, State}          |
+%%          {noreply, State, Timeout} |
+%%          {stop, Reason, State}            (terminate/2 is called)
+%% --------------------------------------------------------------------
+handle_info(#process{file=File,type=Type,value=V}, State) ->
+	error_logger:info_msg("file:~p ~p data:~p%~n", [File,Type,V]),
+    {noreply, State};
+handle_info(Info, State) ->
+    {noreply, State}.
+
+%% --------------------------------------------------------------------
+%% Function: terminate/2
+%% Description: Shutdown the server
+%% Returns: any (ignored by gen_server)
+%% --------------------------------------------------------------------
+terminate(Reason, State) ->
+    ok.
+
+%% --------------------------------------------------------------------
+%% Func: code_change/3
+%% Purpose: Convert process state when code is changed
+%% Returns: {ok, NewState}
+%% --------------------------------------------------------------------
+code_change(OldVsn, State, Extra) ->
+    {ok, State}.
+
+%% --------------------------------------------------------------------
+%%% Internal functions
+%% --------------------------------------------------------------------
+
+accept(Lsock) ->
+	error_logger:info_msg("**********spawn acceptor*********~n"),
+	case gen_tcp:accept(Lsock) of
+		{error,Error} ->
+			error_logger:error_msg("accecpt sock error:~p~n", [Error]),
+			gen_tcp:close(Lsock);
+		{ok,So} ->
+			error_logger:info_msg("accecpt sock:~p~n", [So]),
+			proc_lib:spawn(?MODULE,accept,[Lsock]),
+			case gen_tcp:recv(So, 0) of
+				{error,Error} ->
+					error_logger:error_msg("sock error:~p~n", [Error]),
+					gen_tcp:close(So),
+					{error,Error};
+				{ok,Bin} ->
+					#info{dir=Dir,file=File,size=Size} = binary_to_term(Bin),
+					case filelib:ensure_dir(Dir) of
+						ok ->
+							FileName = filename:join(Dir,File),
+							case prim_file:open(FileName, ?FILE_WRITE_OPEN_OPTIONS) of
+								{ok,Fd} ->
+									gen_tcp:send(So, term_to_binary({ok,start})),
+									error_logger:info_msg("~p: error:~p~n",[?LINE,null]),
+									timer:sleep(1000),
+									receive_write(#info{file=FileName,so=So,fd=Fd,size=Size});
+								E0 ->
+									error_logger:info_msg("create file:~p with error:~p~n", [FileName,
+																							 E0]),
+									gen_tcp:send(So, term_to_binary(E0))
+							end;
+						E1 ->
+							error_logger:error_msg("ensure dir failed:~p~n", [E1]),
+							gen_tcp:send(So, term_to_binary(E1))
+					end
+			end			
+	end.
+
+
+receive_write(#info{fd=Fd,file=File,so=So,size=Size,temp_size=Tsize}=Info) ->
+	case gen_tcp:recv(So, 0) of
+		{error,E} ->
+			gen_tcp:close(So);
+		{ok,<<>>} ->
+			prim_file:close(Fd);		
+		{ok,Bin} ->
+			prim_file:write(Fd, Bin),
+			Tsize1 = (size(Bin)+Tsize),
+			Val = erlang:trunc((100*Tsize1 / Size)),
+			?MODULE ! #process{file=File,value=Val,type=?TYPE_RECEIVE},
+			receive_write(Info#info{temp_size=Tsize1})
+	end.
+
+send_read(#info{fd=Fd,file=File,so=So,size=Size,temp_size=Tsize}=Info) ->
+	case prim_file:read(Fd, ?DEFAULT_LEN) of
+		eof ->
+			gen_tcp:send(So, <<>>),
+			prim_file:close(Fd),
+			gen_tcp:close(So);
+		{ok,Bin} ->
+			gen_tcp:send(So, Bin),
+			Tsize1 = (size(Bin)+Tsize),
+			Val = erlang:trunc((100*Tsize1 / Size)),
+			?MODULE ! #process{file=File,value=Val,type=?TYPE_SEND},
+			send_read(Info#info{temp_size=Tsize1});
+		{error,E} ->
+			error_logger:error_msg("read file error:~p~n",[E]),
+			prim_file:close(Fd),
+			gen_tcp:close(So)
+	end.
+	
+		
